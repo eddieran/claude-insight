@@ -1,5 +1,8 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
+pub mod backlog;
+pub mod transcript_tailer;
+
 use std::{
     net::{Ipv4Addr, SocketAddr},
     path::PathBuf,
@@ -17,6 +20,11 @@ use axum::{
 use claude_insight_storage::{Database, NewRawEvent};
 use claude_insight_types::HookEvent;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+
+pub use backlog::{
+    append_to_backlog, process_backlog, BacklogError, BacklogProcessor, BacklogWriter,
+};
+pub use transcript_tailer::{TranscriptTailer, TranscriptTailerConfig, TranscriptTailerError};
 
 pub const CRATE_NAME: &str = "claude-insight-capture";
 pub const DEFAULT_CAPTURE_PORT: u16 = 4180;

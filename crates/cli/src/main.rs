@@ -105,37 +105,31 @@ async fn run(cli: Cli) -> CliResult {
 }
 
 fn handle_init() -> CliResult {
-    let daemon = claude_insight_daemon::DaemonStub::new("127.0.0.1:4180", "127.0.0.1:4181");
-    let tui = claude_insight_tui::TuiStub::new("Claude Insight");
-    let storage = daemon.storage();
-    let title = tui.title_line().to_string();
     let db_path = claude_insight_storage::Database::default_path()?;
+    let tui = claude_insight_tui::TuiStub::new("Claude Insight");
+    let title = tui.title_line().to_string();
 
     println!("{} {}", "Initialized".green().bold(), title.white().bold());
     println!("database: {}", db_path.display().to_string().cyan());
-    println!("storage: {}", storage.database_url.dark_grey());
+    println!("storage: {}", "sqlite".dark_grey());
 
     Ok(())
 }
 
 async fn handle_serve() -> CliResult {
-    let daemon = claude_insight_daemon::DaemonStub::new("127.0.0.1:4180", "127.0.0.1:4181");
-    let _router = daemon.router().await;
-    let _database = claude_insight_storage::Database::open_default()?;
-    let pid_path = pid_file_path()?;
-
-    fs::create_dir_all(app_dir()?)?;
-    write_pid_file(&pid_path, std::process::id())?;
+    let mut daemon =
+        claude_insight_daemon::DaemonManager::new(claude_insight_daemon::DaemonConfig::default());
+    let report = daemon.start().await?;
 
     println!(
-        "{} {}",
+        "{} {} {}",
         "Daemon running.".green().bold(),
+        format!("capture={}", report.capture_addr).cyan(),
         database_path_label()?.dark_grey()
     );
+    daemon.wait_for_shutdown().await?;
 
-    loop {
-        thread::sleep(Duration::from_secs(60));
-    }
+    Ok(())
 }
 
 fn handle_trace(session_id: Option<&str>, limit: usize) -> CliResult {
@@ -247,17 +241,16 @@ fn handle_gc(days: u32) -> CliResult {
 
 fn handle_normalize(rebuild: bool) -> CliResult {
     let database = claude_insight_storage::Database::open_default()?;
-    let report = database.normalize(rebuild)?;
+    let report = database.normalize()?;
 
     println!(
-        "{} {} raw events across {} sessions (last raw event id: {}).",
+        "{} {} raw events (last raw event id: {}).",
         if rebuild {
             "Rebuilt".green().bold()
         } else {
             "Normalized".green().bold()
         },
-        report.events_processed.to_string().cyan(),
-        report.sessions_touched.to_string().cyan(),
+        report.processed_events.to_string().cyan(),
         report.last_raw_event_id.to_string().cyan()
     );
 
@@ -359,10 +352,6 @@ fn database_path_label() -> CliResult<String> {
         "db={}",
         claude_insight_storage::Database::default_path()?.display()
     ))
-}
-
-fn write_pid_file(path: &Path, pid: u32) -> io::Result<()> {
-    fs::write(path, pid.to_string())
 }
 
 fn read_pid_file(path: &Path) -> io::Result<u32> {
