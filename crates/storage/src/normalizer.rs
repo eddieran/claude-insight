@@ -1237,6 +1237,9 @@ mod tests {
         }
 
         let first = db.normalize()?;
+        let session_count_before: i64 =
+            db.conn
+                .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
         let rebuilt = db.rebuild()?;
 
         assert_eq!(first.processed_events, fixtures.len());
@@ -1246,10 +1249,10 @@ mod tests {
             i64::try_from(fixtures.len()).unwrap_or(0)
         );
 
-        let session_count: i64 = db
-            .conn
-            .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
-        assert_eq!(session_count, 1);
+        let session_count_after: i64 =
+            db.conn
+                .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
+        assert_eq!(session_count_after, session_count_before);
 
         Ok(())
     }
