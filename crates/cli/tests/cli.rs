@@ -164,6 +164,7 @@ fn normalize_materializes_sessions_table() -> Result<(), Box<dyn std::error::Err
             "hook_event_name": "SessionStart",
             "session_id": "session-1",
             "source": "startup",
+            "transcript_path": "/tmp/session-1/transcript.jsonl",
             "cwd": "/workspace/claude-insight",
             "transcript_path": "/workspace/.claude/projects/claude-insight/session-1.jsonl",
         })

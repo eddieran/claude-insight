@@ -598,7 +598,7 @@ mod tests {
         let entries = fixture_lines()
             .map(serde_json::from_str::<TranscriptEntry>)
             .collect::<Result<Vec<_>, _>>()
-            .expect("fixture lines should deserialize");
+            .unwrap_or_else(|error| panic!("fixture lines should deserialize: {error}"));
 
         assert_eq!(entries.len(), 30);
         assert!(entries
@@ -732,7 +732,7 @@ mod tests {
         let entry = serde_json::from_str::<TranscriptEntry>(
             r#"{"type":"future-entry","sessionId":"s-1","value":42}"#,
         )
-        .expect("unknown entry types should not fail");
+        .unwrap_or_else(|error| panic!("unknown entry types should not fail: {error}"));
 
         match entry {
             TranscriptEntry::Unknown(value) => {
@@ -748,7 +748,7 @@ mod tests {
         let mut value = fixture_value_by_type("assistant");
         let object = value
             .as_object_mut()
-            .expect("assistant fixture should be a JSON object");
+            .unwrap_or_else(|| panic!("assistant fixture should be a JSON object"));
 
         object.insert(
             "future_field".to_owned(),
@@ -759,8 +759,9 @@ mod tests {
             serde_json::json!({ "enabled": true }),
         );
 
-        let entry = serde_json::from_value::<TranscriptEntry>(value)
-            .expect("augmented transcript entry should deserialize");
+        let entry = serde_json::from_value::<TranscriptEntry>(value).unwrap_or_else(|error| {
+            panic!("augmented transcript entry should deserialize: {error}")
+        });
 
         assert!(matches!(entry, TranscriptEntry::Message(_)));
     }
@@ -791,7 +792,7 @@ mod tests {
                 "version":"2.1.81"
             }"#,
         )
-        .expect("assistant entry should deserialize");
+        .unwrap_or_else(|error| panic!("assistant entry should deserialize: {error}"));
 
         let TranscriptEntry::Message(message) = assistant else {
             panic!("expected assistant message variant");
