@@ -299,12 +299,24 @@ mod tests {
     use super::*;
     use serde_json::json;
     use std::{collections::BTreeSet, error::Error, sync::Arc, thread};
-    use tempfile::tempdir;
+
+    fn temp_backlog_root(test_name: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+
+        std::env::temp_dir().join(format!(
+            "claude-insight-backlog-{test_name}-{}-{nanos}",
+            std::process::id()
+        ))
+    }
 
     #[test]
     fn backlog_concurrent_appends_are_not_interleaved() -> Result<(), Box<dyn Error>> {
-        let temp_dir = tempdir()?;
-        let backlog_path = temp_dir.path().join("backlog.jsonl");
+        let temp_root = temp_backlog_root("concurrent-appends");
+        std::fs::create_dir_all(&temp_root)?;
+        let backlog_path = temp_root.join("backlog.jsonl");
         let writer = Arc::new(BacklogWriter::new(&backlog_path));
         let handles: Vec<_> = (0..10)
             .map(|index| {
@@ -338,17 +350,57 @@ mod tests {
         }
 
         assert_eq!(sequences.len(), 10);
+        std::fs::remove_dir_all(&temp_root)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn backlog_append_rejects_empty_payload() {
+        let temp_root = temp_backlog_root("empty-payload");
+        let backlog_path = temp_root.join("backlog.jsonl");
+        let writer = BacklogWriter::new(&backlog_path);
+
+        let error = match writer.append("\n") {
+            Ok(()) => panic!("empty payload should be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(error, BacklogError::EmptyEvent));
+    }
+
+    #[test]
+    fn backlog_process_rejects_malformed_records() -> Result<(), Box<dyn Error>> {
+        let temp_root = temp_backlog_root("malformed-record");
+        let backlog_path = temp_root.join(".claude-insight").join("backlog.jsonl");
+        if let Some(parent) = backlog_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&backlog_path, "{\"hook_event_name\":\"Notification\"}\n")?;
+
+        let db = Database::new(":memory:")?;
+        let processor = BacklogProcessor::new(&backlog_path);
+        let error = match processor.process(&db) {
+            Ok(_) => panic!("malformed backlog line should fail"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(
+            error,
+            BacklogError::InvalidField {
+                line_number: 1,
+                field: "session_id"
+            }
+        ));
+        std::fs::remove_dir_all(&temp_root)?;
 
         Ok(())
     }
 
     #[test]
     fn backlog_process_moves_events_into_database_and_clears_file() -> Result<(), Box<dyn Error>> {
-        let temp_dir = tempdir()?;
-        let backlog_path = temp_dir
-            .path()
-            .join(".claude-insight")
-            .join("backlog.jsonl");
+        let temp_root = temp_backlog_root("process");
+        let backlog_path = temp_root.join(".claude-insight").join("backlog.jsonl");
         let writer = BacklogWriter::new(&backlog_path);
 
         for index in 0..10 {
@@ -368,6 +420,7 @@ mod tests {
         assert!(events
             .iter()
             .all(|event| event.event_type == "Notification"));
+        std::fs::remove_dir_all(&temp_root)?;
 
         Ok(())
     }

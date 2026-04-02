@@ -247,11 +247,7 @@ fn handle_gc(days: u32) -> CliResult {
 
 fn handle_normalize(rebuild: bool) -> CliResult {
     let database = claude_insight_storage::Database::open_default()?;
-    let report = if rebuild {
-        database.rebuild_normalized()?
-    } else {
-        database.normalize()?
-    };
+    let report = database.normalize()?;
 
     println!(
         "{} {} raw events (last raw event id: {}).",
@@ -295,7 +291,7 @@ async fn daemon_start() -> CliResult {
         .stderr(Stdio::null())
         .spawn()?;
 
-    for _ in 0..50 {
+    for _ in 0..20 {
         if let Some(status) = child.try_wait()? {
             return Err(format!("daemon exited early with status {status}").into());
         }
@@ -332,7 +328,7 @@ fn daemon_stop() -> CliResult {
 
     terminate_process(pid)?;
 
-    for _ in 0..50 {
+    for _ in 0..20 {
         if !is_process_running(pid)? {
             let _ = fs::remove_file(&pid_path);
             println!(
