@@ -2,6 +2,12 @@
 
 use axum::{http::StatusCode, routing::post, Router};
 
+mod backlog;
+
+pub use backlog::{
+    append_to_backlog, process_backlog, BacklogError, BacklogProcessor, BacklogWriter,
+};
+
 pub const CRATE_NAME: &str = "claude-insight-capture";
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -11,7 +17,9 @@ pub struct CaptureStub {
 }
 
 pub fn hooks_router() -> Router {
-    Router::new().route("/events", post(|| async move { StatusCode::ACCEPTED }))
+    Router::new()
+        .route("/events", post(|| async move { StatusCode::ACCEPTED }))
+        .route("/hooks", post(|| async move { StatusCode::ACCEPTED }))
 }
 
 pub fn backlog_settings() -> CaptureStub {
