@@ -107,6 +107,12 @@ fn normalize_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<(
 }
 
 fn normalize_hook_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<()> {
+    if matches!(event.event_type.as_str(), "SessionStart" | "SessionEnd")
+        && normalize_partial_session_hook(tx, event)?
+    {
+        return Ok(());
+    }
+
     match event.event_type.as_str() {
         "SessionStart" => match parse_hook_event(event)? {
             HookEvent::SessionStart(input) => normalize_session_start(tx, event, &input),
@@ -175,9 +181,12 @@ fn normalize_session_start(
     event: &RawEvent,
     input: &SessionStartInput,
 ) -> rusqlite::Result<()> {
-    upsert_session(
+    upsert_session_fields(
         tx,
-        &input.base,
+        &input.base.session_id,
+        Some(input.base.transcript_path.as_str()),
+        Some(input.base.cwd.as_str()),
+        input.base.permission_mode.as_deref(),
         event.claude_version.as_deref(),
         input.model.as_deref(),
         Some(event.ts.as_str()),
@@ -192,9 +201,12 @@ fn normalize_session_end(
     event: &RawEvent,
     input: &SessionEndInput,
 ) -> rusqlite::Result<()> {
-    upsert_session(
+    upsert_session_fields(
         tx,
-        &input.base,
+        &input.base.session_id,
+        Some(input.base.transcript_path.as_str()),
+        Some(input.base.cwd.as_str()),
+        input.base.permission_mode.as_deref(),
         event.claude_version.as_deref(),
         None,
         None,
@@ -617,6 +629,35 @@ fn upsert_session(
     end_reason: Option<&str>,
     source: Option<&str>,
 ) -> rusqlite::Result<()> {
+    upsert_session_fields(
+        tx,
+        &base.session_id,
+        Some(base.transcript_path.as_str()),
+        Some(base.cwd.as_str()),
+        base.permission_mode.as_deref(),
+        claude_version,
+        model,
+        start_ts,
+        end_ts,
+        end_reason,
+        source,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn upsert_session_fields(
+    tx: &Transaction<'_>,
+    session_id: &str,
+    transcript_path: Option<&str>,
+    cwd: Option<&str>,
+    permission_mode: Option<&str>,
+    claude_version: Option<&str>,
+    model: Option<&str>,
+    start_ts: Option<&str>,
+    end_ts: Option<&str>,
+    end_reason: Option<&str>,
+    source: Option<&str>,
+) -> rusqlite::Result<()> {
     tx.execute(
         "INSERT INTO sessions (
             id,
@@ -643,13 +684,13 @@ fn upsert_session(
             end_reason = COALESCE(excluded.end_reason, sessions.end_reason),
             source = COALESCE(excluded.source, sessions.source)",
         params![
-            base.session_id,
-            base.transcript_path,
-            base.cwd,
-            base.cwd,
+            session_id,
+            transcript_path,
+            cwd,
+            cwd,
             claude_version,
             model,
-            base.permission_mode,
+            permission_mode,
             start_ts,
             end_ts,
             end_reason,
@@ -658,6 +699,80 @@ fn upsert_session(
     )?;
 
     Ok(())
+}
+
+fn normalize_partial_session_hook(
+    tx: &Transaction<'_>,
+    event: &RawEvent,
+) -> rusqlite::Result<bool> {
+    let Some(session_id) = event.session_id.as_deref() else {
+        return Ok(false);
+    };
+
+    let payload: serde_json::Value =
+        serde_json::from_str(&event.payload_json).map_err(|error| {
+            rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(format!(
+                "failed to parse hook payload for {} (raw_event_id={}): {error}",
+                event.event_type, event.id
+            ))))
+        })?;
+    let object = match payload.as_object() {
+        Some(object) => object,
+        None => return Ok(false),
+    };
+
+    let transcript_path = object
+        .get("transcript_path")
+        .and_then(serde_json::Value::as_str);
+    let cwd = object.get("cwd").and_then(serde_json::Value::as_str);
+    let permission_mode = object
+        .get("permission_mode")
+        .and_then(serde_json::Value::as_str);
+
+    match event.event_type.as_str() {
+        "SessionStart" => {
+            let source = object
+                .get("source")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("hook");
+            let model = object.get("model").and_then(serde_json::Value::as_str);
+            upsert_session_fields(
+                tx,
+                session_id,
+                transcript_path,
+                cwd,
+                permission_mode,
+                event.claude_version.as_deref(),
+                model,
+                Some(event.ts.as_str()),
+                None,
+                None,
+                Some(source),
+            )?;
+            Ok(true)
+        }
+        "SessionEnd" => {
+            let end_reason = object
+                .get("reason")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("hook");
+            upsert_session_fields(
+                tx,
+                session_id,
+                transcript_path,
+                cwd,
+                permission_mode,
+                event.claude_version.as_deref(),
+                None,
+                None,
+                Some(event.ts.as_str()),
+                Some(end_reason),
+                Some("hook"),
+            )?;
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
 }
 
 fn ensure_prompt_exists(

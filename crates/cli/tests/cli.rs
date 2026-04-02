@@ -209,11 +209,21 @@ fn daemon_start_and_stop_manage_pid_file() -> Result<(), Box<dyn std::error::Err
     let pid_file = env.app_home().join(".claude-insight").join("daemon.pid");
 
     let start_output = env.command().args(["daemon", "start"]).output()?;
-    assert!(start_output.status.success());
+    assert!(
+        start_output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&start_output.stdout),
+        String::from_utf8_lossy(&start_output.stderr)
+    );
     assert!(pid_file.exists());
 
     let stop_output = env.command().args(["daemon", "stop"]).output()?;
-    assert!(stop_output.status.success());
+    assert!(
+        stop_output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&stop_output.stdout),
+        String::from_utf8_lossy(&stop_output.stderr)
+    );
     assert!(!pid_file.exists());
 
     Ok(())
