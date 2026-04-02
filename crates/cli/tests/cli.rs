@@ -398,14 +398,31 @@ fn init_global_preserves_existing_hooks_and_is_idempotent() -> Result<(), Box<dy
 #[test]
 fn init_prints_first_run_banner() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
+    let capture_port = reserve_capture_port()?;
 
-    let output = env.command().arg("init").output()?;
+    let output = env
+        .command()
+        .env("CLAUDE_INSIGHT_CAPTURE_PORT", capture_port.to_string())
+        .arg("init")
+        .output()?;
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8(output.stdout)?;
     assert!(stdout.contains("Local observability for Claude Code"));
     assert!(stdout.contains("Initialized"));
+
+    let stop_output = env
+        .command()
+        .env("CLAUDE_INSIGHT_CAPTURE_PORT", capture_port.to_string())
+        .args(["daemon", "stop"])
+        .output()?;
+    assert!(stop_output.status.success());
 
     Ok(())
 }

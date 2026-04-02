@@ -52,10 +52,7 @@ const HOOK_EVENT_NAMES: &[&str] = &[
 ];
 
 #[derive(Debug, Parser)]
-#[command(
-    name = "claude-insight",
-    about = "Observe Claude Code sessions from the terminal"
-)]
+#[command(name = "claude-insight", about = "Local observability for Claude Code")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -161,6 +158,7 @@ async fn handle_init(global: bool, capture_content: bool) -> CliResult {
         "status=started"
     };
 
+    println!("{}", claude_insight_tui::ASCII_BANNER);
     println!(
         "{} {}",
         "Initialized".green().bold(),
