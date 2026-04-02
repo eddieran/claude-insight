@@ -164,6 +164,7 @@ async fn handle_init(global: bool, capture_content: bool) -> CliResult {
         "Initialized".green().bold(),
         "Claude Insight".white().bold()
     );
+    println!("{}", "Local observability for Claude Code".dark_grey());
     println!("settings: {}", settings_path.display().to_string().cyan());
     println!(
         "hooks: {}",

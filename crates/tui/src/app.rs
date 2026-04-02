@@ -46,8 +46,8 @@ impl App {
         self.should_quit
     }
 
-    pub fn render(&self, frame: &mut Frame<'_>, area: Rect) {
-        match &self.view {
+    pub fn render(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        match &mut self.view {
             AppView::SessionList => self.session_list.render(frame, area),
             AppView::Replay(state) => ReplayView::render(frame, area, state),
         }
