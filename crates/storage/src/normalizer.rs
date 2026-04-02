@@ -41,6 +41,27 @@ pub(crate) fn normalize(database: &Database) -> rusqlite::Result<NormalizationSt
     })
 }
 
+pub(crate) fn rebuild(database: &Database) -> rusqlite::Result<NormalizationStats> {
+    let tx = database.conn.unchecked_transaction()?;
+    tx.execute_batch(
+        "
+        DELETE FROM event_links;
+        DELETE FROM permission_decisions;
+        DELETE FROM instruction_loads;
+        DELETE FROM config_snapshots;
+        DELETE FROM prompts;
+        DELETE FROM tool_invocations;
+        DELETE FROM sessions;
+        UPDATE normalization_state
+        SET last_raw_event_id = 0
+        WHERE id = 1;
+        ",
+    )?;
+    tx.commit()?;
+
+    normalize(database)
+}
+
 fn read_watermark(tx: &Transaction<'_>) -> rusqlite::Result<i64> {
     tx.query_row(
         "SELECT last_raw_event_id
@@ -1194,6 +1215,41 @@ mod tests {
         assert_eq!(stats.last_raw_event_id, raw_id);
         assert_eq!(db.normalization_watermark()?, raw_id);
         assert_eq!(session_count, 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_reprocesses_existing_raw_events() -> rusqlite::Result<()> {
+        let db = Database::new(":memory:")?;
+        let fixtures = [
+            fixture_root().join("hooks/SessionStart.json"),
+            fixture_root().join("hooks/UserPromptSubmit.json"),
+            fixture_root().join("hooks/PreToolUse.json"),
+            fixture_root().join("hooks/PostToolUse.json"),
+            fixture_root().join("hooks/SessionEnd.json"),
+        ];
+
+        for (index, path) in fixtures.iter().enumerate() {
+            let payload = fs::read_to_string(path)
+                .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
+            insert_fixture_event(&db, "hook", &payload, index + 1)?;
+        }
+
+        let first = db.normalize()?;
+        let rebuilt = db.rebuild()?;
+
+        assert_eq!(first.processed_events, fixtures.len());
+        assert_eq!(rebuilt.processed_events, fixtures.len());
+        assert_eq!(
+            db.normalization_watermark()?,
+            i64::try_from(fixtures.len()).unwrap_or(0)
+        );
+
+        let session_count: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
+        assert_eq!(session_count, 1);
 
         Ok(())
     }

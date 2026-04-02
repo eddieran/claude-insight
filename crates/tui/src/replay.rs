@@ -421,6 +421,7 @@ fn event_emoji(kind: SessionEventKind) -> &'static str {
         SessionEventKind::Other => "📋",
         SessionEventKind::Tool => "🔧",
         SessionEventKind::PermissionRequest => "❓",
+        SessionEventKind::Retry => "🔁",
         SessionEventKind::PermissionDenied => "🚫",
         SessionEventKind::PostToolUseFailure | SessionEventKind::StopFailure => "⚠️",
     }
@@ -488,7 +489,7 @@ mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     use super::*;
-    use crate::session_list::Mood;
+    use crate::widgets::mood_badge::Mood;
 
     #[test]
     fn replay_layout_180x50_snapshot() {

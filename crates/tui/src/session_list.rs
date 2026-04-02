@@ -227,6 +227,7 @@ pub struct SessionListView {
     overlay: SessionListOverlay,
     branch_filter_index: usize,
     mood_filter: MoodFilter,
+    empty_state_message: Option<String>,
 }
 
 impl SessionListView {
@@ -240,6 +241,7 @@ impl SessionListView {
             overlay: SessionListOverlay::None,
             branch_filter_index: 0,
             mood_filter: MoodFilter::All,
+            empty_state_message: None,
         };
         view.ensure_selection_in_bounds();
         view
@@ -275,6 +277,18 @@ impl SessionListView {
         self.overlay = SessionListOverlay::None;
     }
 
+    pub fn empty_state_message(&self) -> Option<&str> {
+        self.empty_state_message.as_deref()
+    }
+
+    pub fn set_empty_state_message(&mut self, message: impl Into<String>) {
+        self.empty_state_message = Some(message.into());
+    }
+
+    pub fn clear_empty_state_message(&mut self) {
+        self.empty_state_message = None;
+    }
+
     pub fn render(&self, frame: &mut Frame<'_>, area: Rect) {
         let block = Block::default()
             .title(Line::from(" CLAUDE INSIGHT ").bold())
@@ -296,7 +310,7 @@ impl SessionListView {
 
         frame.render_widget(render_title(self.sort_order), title);
         if self.sessions.is_empty() || self.visible_indices().is_empty() {
-            render_empty_state(frame, body);
+            render_empty_state(frame, body, self.empty_state_message.as_deref());
         } else {
             self.render_rows(frame, body);
         }
@@ -572,10 +586,12 @@ fn render_help_bar() -> Paragraph<'static> {
         .alignment(Alignment::Center)
 }
 
-fn render_empty_state(frame: &mut Frame<'_>, area: Rect) {
-    let paragraph = Paragraph::new("No sessions captured yet. Run `claude-insight init` to start.")
-        .style(Style::new().fg(TEXT_DIM))
-        .alignment(Alignment::Center);
+fn render_empty_state(frame: &mut Frame<'_>, area: Rect, message: Option<&str>) {
+    let paragraph = Paragraph::new(
+        message.unwrap_or("No sessions captured yet. Run `claude-insight init` to start."),
+    )
+    .style(Style::new().fg(TEXT_DIM))
+    .alignment(Alignment::Center);
     frame.render_widget(paragraph, area);
 }
 
