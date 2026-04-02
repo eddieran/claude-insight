@@ -28,7 +28,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
-claude-insight-capture = { path = "crates/capture" }
+claude-insight-capture = { package = "capture", path = "crates/capture" }
 claude-insight-daemon = { path = "crates/daemon" }
 claude-insight-storage = { package = "storage", path = "crates/storage" }
 claude-insight-tui = { path = "crates/tui" }

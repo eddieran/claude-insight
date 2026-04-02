@@ -1,12 +1,14 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
 mod fts;
+mod normalizer;
 mod raw_store;
 mod schema;
 
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
+pub use normalizer::NormalizationStats;
 pub use raw_store::{NewRawEvent, RawEvent, RawEventQuery};
 
 pub const CRATE_NAME: &str = "claude-insight-storage";
@@ -58,6 +60,20 @@ impl Database {
 
     pub fn create_tables(&self) -> rusqlite::Result<()> {
         schema::create_tables(&self.conn)
+    }
+
+    pub fn normalize(&self) -> rusqlite::Result<NormalizationStats> {
+        normalizer::normalize(self)
+    }
+
+    pub fn normalization_watermark(&self) -> rusqlite::Result<i64> {
+        self.conn.query_row(
+            "SELECT last_raw_event_id
+             FROM normalization_state
+             WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
     }
 }
 

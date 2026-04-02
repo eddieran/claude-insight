@@ -166,9 +166,9 @@ impl Database {
         })
     }
 
-    pub fn delete_raw_events_before(&self, ts: &str) -> rusqlite::Result<usize> {
+    pub fn count_raw_events(&self) -> rusqlite::Result<u64> {
         self.conn
-            .execute("DELETE FROM raw_events WHERE ts < ?1", params![ts])
+            .query_row("SELECT COUNT(*) FROM raw_events", [], |row| row.get(0))
     }
 }
 
