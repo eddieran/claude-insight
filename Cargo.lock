@@ -261,20 +261,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "claude-insight-cli"
-version = "0.1.0"
-dependencies = [
- "clap",
- "claude-insight-capture",
- "claude-insight-daemon",
- "claude-insight-tui",
- "storage",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "claude-insight-daemon"
 version = "0.1.0"
 dependencies = [
@@ -294,6 +280,22 @@ dependencies = [
  "syntect",
  "tracing",
  "types",
+]
+
+[[package]]
+name = "cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "claude-insight-capture",
+ "claude-insight-daemon",
+ "claude-insight-tui",
+ "crossterm",
+ "serde_json",
+ "storage",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
