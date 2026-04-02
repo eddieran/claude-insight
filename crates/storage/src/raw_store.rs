@@ -165,6 +165,11 @@ impl Database {
             ..RawEventQuery::default()
         })
     }
+
+    pub fn count_raw_events(&self) -> rusqlite::Result<u64> {
+        self.conn
+            .query_row("SELECT COUNT(*) FROM raw_events", [], |row| row.get(0))
+    }
 }
 
 pub(crate) fn map_raw_event(row: &Row<'_>) -> rusqlite::Result<RawEvent> {

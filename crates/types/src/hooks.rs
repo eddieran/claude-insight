@@ -1,5 +1,6 @@
-use std::fmt;
+use std::{collections::BTreeMap, fmt};
 
+use serde::de::Error as _;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -228,6 +229,16 @@ hook_input!(FileChangedInput {
     event: String,
 });
 
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct UnknownHookInput {
+    #[serde(flatten)]
+    pub base: BaseHookInput,
+    #[serde(rename = "hook_event_name")]
+    pub raw_hook_event_name: Option<String>,
+    #[serde(flatten)]
+    pub extra_fields: BTreeMap<String, Value>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum HookEvent {
     PreToolUse(PreToolUseInput),
@@ -257,6 +268,7 @@ pub enum HookEvent {
     InstructionsLoaded(InstructionsLoadedInput),
     CwdChanged(CwdChangedInput),
     FileChanged(FileChangedInput),
+    Unknown(UnknownHookInput),
 }
 
 impl HookEvent {
@@ -289,6 +301,7 @@ impl HookEvent {
             Self::InstructionsLoaded(input) => &input.base,
             Self::CwdChanged(input) => &input.base,
             Self::FileChanged(input) => &input.base,
+            Self::Unknown(input) => &input.base,
         }
     }
 
@@ -297,182 +310,125 @@ impl HookEvent {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(tag = "hook_event_name")]
-enum HookEventRepr {
-    #[serde(rename = "PreToolUse")]
-    PreToolUse(PreToolUseInput),
-    #[serde(rename = "PostToolUse")]
-    PostToolUse(PostToolUseInput),
-    #[serde(rename = "PostToolUseFailure")]
-    PostToolUseFailure(PostToolUseFailureInput),
-    #[serde(rename = "Notification")]
-    Notification(NotificationInput),
-    #[serde(rename = "UserPromptSubmit")]
-    UserPromptSubmit(UserPromptSubmitInput),
-    #[serde(rename = "SessionStart")]
-    SessionStart(SessionStartInput),
-    #[serde(rename = "SessionEnd")]
-    SessionEnd(SessionEndInput),
-    #[serde(rename = "Stop")]
-    Stop(StopInput),
-    #[serde(rename = "StopFailure")]
-    StopFailure(StopFailureInput),
-    #[serde(rename = "SubagentStart")]
-    SubagentStart(SubagentStartInput),
-    #[serde(rename = "SubagentStop")]
-    SubagentStop(SubagentStopInput),
-    #[serde(rename = "PreCompact")]
-    PreCompact(PreCompactInput),
-    #[serde(rename = "PostCompact")]
-    PostCompact(PostCompactInput),
-    #[serde(rename = "PermissionRequest")]
-    PermissionRequest(PermissionRequestInput),
-    #[serde(rename = "PermissionDenied")]
-    PermissionDenied(PermissionDeniedInput),
-    #[serde(rename = "Setup")]
-    Setup(SetupInput),
-    #[serde(rename = "TeammateIdle")]
-    TeammateIdle(TeammateIdleInput),
-    #[serde(rename = "TaskCreated")]
-    TaskCreated(TaskCreatedInput),
-    #[serde(rename = "TaskCompleted")]
-    TaskCompleted(TaskCompletedInput),
-    #[serde(rename = "Elicitation")]
-    Elicitation(ElicitationInput),
-    #[serde(rename = "ElicitationResult")]
-    ElicitationResult(ElicitationResultInput),
-    #[serde(rename = "ConfigChange")]
-    ConfigChange(ConfigChangeInput),
-    #[serde(rename = "WorktreeCreate")]
-    WorktreeCreate(WorktreeCreateInput),
-    #[serde(rename = "WorktreeRemove")]
-    WorktreeRemove(WorktreeRemoveInput),
-    #[serde(rename = "InstructionsLoaded")]
-    InstructionsLoaded(InstructionsLoadedInput),
-    #[serde(rename = "CwdChanged")]
-    CwdChanged(CwdChangedInput),
-    #[serde(rename = "FileChanged")]
-    FileChanged(FileChangedInput),
-}
-
 impl<'de> Deserialize<'de> for HookEvent {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let event = HookEventRepr::deserialize(deserializer)?;
+        let value = Value::deserialize(deserializer)?;
+        let hook_event_name = value
+            .get("hook_event_name")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
 
-        Ok(match event {
-            HookEventRepr::PreToolUse(mut input) => {
-                input.base.hook_event_name = HookEventName::PreToolUse;
-                Self::PreToolUse(input)
+        macro_rules! deserialize_known {
+            ($value:expr, $ty:ty, $variant:ident, $name:ident) => {{
+                let mut input: $ty = serde_json::from_value($value).map_err(D::Error::custom)?;
+                input.base.hook_event_name = HookEventName::$name;
+                Ok(Self::$variant(input))
+            }};
+        }
+
+        match hook_event_name.as_deref() {
+            Some("PreToolUse") => {
+                deserialize_known!(value, PreToolUseInput, PreToolUse, PreToolUse)
             }
-            HookEventRepr::PostToolUse(mut input) => {
-                input.base.hook_event_name = HookEventName::PostToolUse;
-                Self::PostToolUse(input)
+            Some("PostToolUse") => {
+                deserialize_known!(value, PostToolUseInput, PostToolUse, PostToolUse)
             }
-            HookEventRepr::PostToolUseFailure(mut input) => {
-                input.base.hook_event_name = HookEventName::PostToolUseFailure;
-                Self::PostToolUseFailure(input)
+            Some("PostToolUseFailure") => deserialize_known!(
+                value,
+                PostToolUseFailureInput,
+                PostToolUseFailure,
+                PostToolUseFailure
+            ),
+            Some("Notification") => {
+                deserialize_known!(value, NotificationInput, Notification, Notification)
             }
-            HookEventRepr::Notification(mut input) => {
-                input.base.hook_event_name = HookEventName::Notification;
-                Self::Notification(input)
+            Some("UserPromptSubmit") => deserialize_known!(
+                value,
+                UserPromptSubmitInput,
+                UserPromptSubmit,
+                UserPromptSubmit
+            ),
+            Some("SessionStart") => {
+                deserialize_known!(value, SessionStartInput, SessionStart, SessionStart)
             }
-            HookEventRepr::UserPromptSubmit(mut input) => {
-                input.base.hook_event_name = HookEventName::UserPromptSubmit;
-                Self::UserPromptSubmit(input)
+            Some("SessionEnd") => {
+                deserialize_known!(value, SessionEndInput, SessionEnd, SessionEnd)
             }
-            HookEventRepr::SessionStart(mut input) => {
-                input.base.hook_event_name = HookEventName::SessionStart;
-                Self::SessionStart(input)
+            Some("Stop") => deserialize_known!(value, StopInput, Stop, Stop),
+            Some("StopFailure") => {
+                deserialize_known!(value, StopFailureInput, StopFailure, StopFailure)
             }
-            HookEventRepr::SessionEnd(mut input) => {
-                input.base.hook_event_name = HookEventName::SessionEnd;
-                Self::SessionEnd(input)
+            Some("SubagentStart") => {
+                deserialize_known!(value, SubagentStartInput, SubagentStart, SubagentStart)
             }
-            HookEventRepr::Stop(mut input) => {
-                input.base.hook_event_name = HookEventName::Stop;
-                Self::Stop(input)
+            Some("SubagentStop") => {
+                deserialize_known!(value, SubagentStopInput, SubagentStop, SubagentStop)
             }
-            HookEventRepr::StopFailure(mut input) => {
-                input.base.hook_event_name = HookEventName::StopFailure;
-                Self::StopFailure(input)
+            Some("PreCompact") => {
+                deserialize_known!(value, PreCompactInput, PreCompact, PreCompact)
             }
-            HookEventRepr::SubagentStart(mut input) => {
-                input.base.hook_event_name = HookEventName::SubagentStart;
-                Self::SubagentStart(input)
+            Some("PostCompact") => {
+                deserialize_known!(value, PostCompactInput, PostCompact, PostCompact)
             }
-            HookEventRepr::SubagentStop(mut input) => {
-                input.base.hook_event_name = HookEventName::SubagentStop;
-                Self::SubagentStop(input)
+            Some("PermissionRequest") => deserialize_known!(
+                value,
+                PermissionRequestInput,
+                PermissionRequest,
+                PermissionRequest
+            ),
+            Some("PermissionDenied") => deserialize_known!(
+                value,
+                PermissionDeniedInput,
+                PermissionDenied,
+                PermissionDenied
+            ),
+            Some("Setup") => deserialize_known!(value, SetupInput, Setup, Setup),
+            Some("TeammateIdle") => {
+                deserialize_known!(value, TeammateIdleInput, TeammateIdle, TeammateIdle)
             }
-            HookEventRepr::PreCompact(mut input) => {
-                input.base.hook_event_name = HookEventName::PreCompact;
-                Self::PreCompact(input)
+            Some("TaskCreated") => {
+                deserialize_known!(value, TaskCreatedInput, TaskCreated, TaskCreated)
             }
-            HookEventRepr::PostCompact(mut input) => {
-                input.base.hook_event_name = HookEventName::PostCompact;
-                Self::PostCompact(input)
+            Some("TaskCompleted") => {
+                deserialize_known!(value, TaskCompletedInput, TaskCompleted, TaskCompleted)
             }
-            HookEventRepr::PermissionRequest(mut input) => {
-                input.base.hook_event_name = HookEventName::PermissionRequest;
-                Self::PermissionRequest(input)
+            Some("Elicitation") => {
+                deserialize_known!(value, ElicitationInput, Elicitation, Elicitation)
             }
-            HookEventRepr::PermissionDenied(mut input) => {
-                input.base.hook_event_name = HookEventName::PermissionDenied;
-                Self::PermissionDenied(input)
+            Some("ElicitationResult") => deserialize_known!(
+                value,
+                ElicitationResultInput,
+                ElicitationResult,
+                ElicitationResult
+            ),
+            Some("ConfigChange") => {
+                deserialize_known!(value, ConfigChangeInput, ConfigChange, ConfigChange)
             }
-            HookEventRepr::Setup(mut input) => {
-                input.base.hook_event_name = HookEventName::Setup;
-                Self::Setup(input)
+            Some("WorktreeCreate") => {
+                deserialize_known!(value, WorktreeCreateInput, WorktreeCreate, WorktreeCreate)
             }
-            HookEventRepr::TeammateIdle(mut input) => {
-                input.base.hook_event_name = HookEventName::TeammateIdle;
-                Self::TeammateIdle(input)
+            Some("WorktreeRemove") => {
+                deserialize_known!(value, WorktreeRemoveInput, WorktreeRemove, WorktreeRemove)
             }
-            HookEventRepr::TaskCreated(mut input) => {
-                input.base.hook_event_name = HookEventName::TaskCreated;
-                Self::TaskCreated(input)
+            Some("InstructionsLoaded") => deserialize_known!(
+                value,
+                InstructionsLoadedInput,
+                InstructionsLoaded,
+                InstructionsLoaded
+            ),
+            Some("CwdChanged") => {
+                deserialize_known!(value, CwdChangedInput, CwdChanged, CwdChanged)
             }
-            HookEventRepr::TaskCompleted(mut input) => {
-                input.base.hook_event_name = HookEventName::TaskCompleted;
-                Self::TaskCompleted(input)
+            Some("FileChanged") => {
+                deserialize_known!(value, FileChangedInput, FileChanged, FileChanged)
             }
-            HookEventRepr::Elicitation(mut input) => {
-                input.base.hook_event_name = HookEventName::Elicitation;
-                Self::Elicitation(input)
-            }
-            HookEventRepr::ElicitationResult(mut input) => {
-                input.base.hook_event_name = HookEventName::ElicitationResult;
-                Self::ElicitationResult(input)
-            }
-            HookEventRepr::ConfigChange(mut input) => {
-                input.base.hook_event_name = HookEventName::ConfigChange;
-                Self::ConfigChange(input)
-            }
-            HookEventRepr::WorktreeCreate(mut input) => {
-                input.base.hook_event_name = HookEventName::WorktreeCreate;
-                Self::WorktreeCreate(input)
-            }
-            HookEventRepr::WorktreeRemove(mut input) => {
-                input.base.hook_event_name = HookEventName::WorktreeRemove;
-                Self::WorktreeRemove(input)
-            }
-            HookEventRepr::InstructionsLoaded(mut input) => {
-                input.base.hook_event_name = HookEventName::InstructionsLoaded;
-                Self::InstructionsLoaded(input)
-            }
-            HookEventRepr::CwdChanged(mut input) => {
-                input.base.hook_event_name = HookEventName::CwdChanged;
-                Self::CwdChanged(input)
-            }
-            HookEventRepr::FileChanged(mut input) => {
-                input.base.hook_event_name = HookEventName::FileChanged;
-                Self::FileChanged(input)
-            }
-        })
+            Some(_) | None => serde_json::from_value(value)
+                .map(Self::Unknown)
+                .map_err(D::Error::custom),
+        }
     }
 }
 
@@ -508,11 +464,26 @@ mod tests {
         paths
     }
 
-    fn fixture_name(path: &PathBuf) -> String {
-        path.file_stem()
-            .unwrap_or_else(|| panic!("fixture path missing file stem: {}", path.display()))
-            .to_string_lossy()
-            .into_owned()
+    fn fixture_event(fixture: &str) -> HookEvent {
+        let path = fixture_dir().join(format!("{fixture}.json"));
+        let json = fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
+
+        serde_json::from_str::<HookEvent>(&json)
+            .unwrap_or_else(|error| panic!("failed to deserialize {}: {error}", path.display()))
+    }
+
+    macro_rules! hook_fixture_test {
+        ($test_name:ident, $fixture:literal, $variant:path, $event_name:ident) => {
+            #[test]
+            fn $test_name() {
+                let event = fixture_event($fixture);
+
+                assert_eq!(event.hook_event_name(), HookEventName::$event_name);
+                assert_eq!(event.hook_event_name().as_str(), $fixture);
+                assert!(matches!(event, $variant(_)));
+            }
+        };
     }
 
     #[test]
@@ -522,20 +493,158 @@ mod tests {
         assert_eq!(paths.len(), 27, "expected one fixture for each hook event");
     }
 
-    #[test]
-    fn every_hook_fixture_deserializes_to_the_matching_variant() {
-        for path in fixture_paths() {
-            let fixture_name = fixture_name(&path);
-            let json = fs::read_to_string(&path)
-                .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
-            let event = serde_json::from_str::<HookEvent>(&json).unwrap_or_else(|error| {
-                panic!("failed to deserialize {}: {error}", path.display())
-            });
-
-            assert_eq!(event.hook_event_name().as_str(), fixture_name);
-            assert_eq!(event.base().hook_event_name.as_str(), fixture_name);
-        }
-    }
+    hook_fixture_test!(
+        config_change_fixture_deserializes,
+        "ConfigChange",
+        HookEvent::ConfigChange,
+        ConfigChange
+    );
+    hook_fixture_test!(
+        cwd_changed_fixture_deserializes,
+        "CwdChanged",
+        HookEvent::CwdChanged,
+        CwdChanged
+    );
+    hook_fixture_test!(
+        elicitation_fixture_deserializes,
+        "Elicitation",
+        HookEvent::Elicitation,
+        Elicitation
+    );
+    hook_fixture_test!(
+        elicitation_result_fixture_deserializes,
+        "ElicitationResult",
+        HookEvent::ElicitationResult,
+        ElicitationResult
+    );
+    hook_fixture_test!(
+        file_changed_fixture_deserializes,
+        "FileChanged",
+        HookEvent::FileChanged,
+        FileChanged
+    );
+    hook_fixture_test!(
+        instructions_loaded_fixture_deserializes,
+        "InstructionsLoaded",
+        HookEvent::InstructionsLoaded,
+        InstructionsLoaded
+    );
+    hook_fixture_test!(
+        notification_fixture_deserializes,
+        "Notification",
+        HookEvent::Notification,
+        Notification
+    );
+    hook_fixture_test!(
+        permission_denied_fixture_deserializes,
+        "PermissionDenied",
+        HookEvent::PermissionDenied,
+        PermissionDenied
+    );
+    hook_fixture_test!(
+        permission_request_fixture_deserializes,
+        "PermissionRequest",
+        HookEvent::PermissionRequest,
+        PermissionRequest
+    );
+    hook_fixture_test!(
+        post_compact_fixture_deserializes,
+        "PostCompact",
+        HookEvent::PostCompact,
+        PostCompact
+    );
+    hook_fixture_test!(
+        post_tool_use_fixture_deserializes,
+        "PostToolUse",
+        HookEvent::PostToolUse,
+        PostToolUse
+    );
+    hook_fixture_test!(
+        post_tool_use_failure_fixture_deserializes,
+        "PostToolUseFailure",
+        HookEvent::PostToolUseFailure,
+        PostToolUseFailure
+    );
+    hook_fixture_test!(
+        pre_compact_fixture_deserializes,
+        "PreCompact",
+        HookEvent::PreCompact,
+        PreCompact
+    );
+    hook_fixture_test!(
+        pre_tool_use_fixture_deserializes,
+        "PreToolUse",
+        HookEvent::PreToolUse,
+        PreToolUse
+    );
+    hook_fixture_test!(
+        session_end_fixture_deserializes,
+        "SessionEnd",
+        HookEvent::SessionEnd,
+        SessionEnd
+    );
+    hook_fixture_test!(
+        session_start_fixture_deserializes,
+        "SessionStart",
+        HookEvent::SessionStart,
+        SessionStart
+    );
+    hook_fixture_test!(setup_fixture_deserializes, "Setup", HookEvent::Setup, Setup);
+    hook_fixture_test!(stop_fixture_deserializes, "Stop", HookEvent::Stop, Stop);
+    hook_fixture_test!(
+        stop_failure_fixture_deserializes,
+        "StopFailure",
+        HookEvent::StopFailure,
+        StopFailure
+    );
+    hook_fixture_test!(
+        subagent_start_fixture_deserializes,
+        "SubagentStart",
+        HookEvent::SubagentStart,
+        SubagentStart
+    );
+    hook_fixture_test!(
+        subagent_stop_fixture_deserializes,
+        "SubagentStop",
+        HookEvent::SubagentStop,
+        SubagentStop
+    );
+    hook_fixture_test!(
+        task_completed_fixture_deserializes,
+        "TaskCompleted",
+        HookEvent::TaskCompleted,
+        TaskCompleted
+    );
+    hook_fixture_test!(
+        task_created_fixture_deserializes,
+        "TaskCreated",
+        HookEvent::TaskCreated,
+        TaskCreated
+    );
+    hook_fixture_test!(
+        teammate_idle_fixture_deserializes,
+        "TeammateIdle",
+        HookEvent::TeammateIdle,
+        TeammateIdle
+    );
+    hook_fixture_test!(
+        user_prompt_submit_fixture_deserializes,
+        "UserPromptSubmit",
+        HookEvent::UserPromptSubmit,
+        UserPromptSubmit
+    );
+    hook_fixture_test!(
+        worktree_create_fixture_deserializes,
+        "WorktreeCreate",
+        HookEvent::WorktreeCreate,
+        WorktreeCreate
+    );
+    hook_fixture_test!(
+        worktree_remove_fixture_deserializes,
+        "WorktreeRemove",
+        HookEvent::WorktreeRemove,
+        WorktreeRemove
+    );
 
     #[test]
     fn unknown_fields_are_ignored_during_deserialization() {
@@ -566,5 +675,45 @@ mod tests {
 
         assert_eq!(event.hook_event_name(), HookEventName::PreToolUse);
         assert!(matches!(event, HookEvent::PreToolUse(_)));
+    }
+
+    #[test]
+    fn unknown_hook_event_types_deserialize_to_unknown_variant() {
+        let path = fixture_dir().join("PreToolUse.json");
+        let mut payload = serde_json::from_str::<serde_json::Value>(
+            &fs::read_to_string(&path)
+                .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display())),
+        )
+        .unwrap_or_else(|error| panic!("failed to parse {}: {error}", path.display()));
+
+        let object = payload.as_object_mut().unwrap_or_else(|| {
+            panic!(
+                "fixture payload for {} was not a JSON object",
+                path.display()
+            )
+        });
+        object.insert(
+            "hook_event_name".to_owned(),
+            serde_json::json!("FutureHookEvent"),
+        );
+        object.insert("future_field".to_owned(), serde_json::json!(42));
+
+        let event = serde_json::from_value::<HookEvent>(payload)
+            .unwrap_or_else(|error| panic!("failed to deserialize unknown hook event: {error}"));
+
+        match event {
+            HookEvent::Unknown(input) => {
+                assert_eq!(input.base.hook_event_name, HookEventName::Unknown);
+                assert_eq!(
+                    input.raw_hook_event_name.as_deref(),
+                    Some("FutureHookEvent")
+                );
+                assert_eq!(
+                    input.extra_fields.get("future_field"),
+                    Some(&serde_json::json!(42))
+                );
+            }
+            other => panic!("expected unknown hook event, got {other:?}"),
+        }
     }
 }

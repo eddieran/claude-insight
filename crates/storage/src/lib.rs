@@ -1,19 +1,15 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
 mod fts;
-mod maintenance;
 mod normalizer;
 mod raw_store;
 mod schema;
-mod sessions;
 
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
-pub use maintenance::GcReport;
-pub use normalizer::NormalizationReport;
+pub use normalizer::NormalizationStats;
 pub use raw_store::{NewRawEvent, RawEvent, RawEventQuery};
-pub use sessions::SessionSummary;
 
 pub const CRATE_NAME: &str = "claude-insight-storage";
 const DEFAULT_DATABASE_DIR: &str = ".claude-insight";
@@ -47,17 +43,15 @@ impl Database {
         Ok(database)
     }
 
-    pub fn default_dir() -> rusqlite::Result<PathBuf> {
-        match std::env::var_os("CLAUDE_INSIGHT_HOME").or_else(|| std::env::var_os("HOME")) {
-            Some(home) => Ok(PathBuf::from(home).join(DEFAULT_DATABASE_DIR)),
+    pub fn default_path() -> rusqlite::Result<PathBuf> {
+        match std::env::var_os("HOME") {
+            Some(home) => Ok(PathBuf::from(home)
+                .join(DEFAULT_DATABASE_DIR)
+                .join(DEFAULT_DATABASE_FILE)),
             None => Err(rusqlite::Error::InvalidPath(PathBuf::from(
                 "~/.claude-insight/insight.db",
             ))),
         }
-    }
-
-    pub fn default_path() -> rusqlite::Result<PathBuf> {
-        Ok(Self::default_dir()?.join(DEFAULT_DATABASE_FILE))
     }
 
     pub fn open_default() -> rusqlite::Result<Self> {
@@ -66,6 +60,20 @@ impl Database {
 
     pub fn create_tables(&self) -> rusqlite::Result<()> {
         schema::create_tables(&self.conn)
+    }
+
+    pub fn normalize(&self) -> rusqlite::Result<NormalizationStats> {
+        normalizer::normalize(self)
+    }
+
+    pub fn normalization_watermark(&self) -> rusqlite::Result<i64> {
+        self.conn.query_row(
+            "SELECT last_raw_event_id
+             FROM normalization_state
+             WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
     }
 }
 
@@ -118,10 +126,11 @@ mod tests {
             "normalization_state",
             "events_fts",
             "raw_events_ai",
+            "raw_events_ad",
         ];
 
         for name in names {
-            let object_type = if name == "raw_events_ai" {
+            let object_type = if matches!(name, "raw_events_ai" | "raw_events_ad") {
                 "trigger"
             } else {
                 "table"
@@ -143,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_raw_event_round_trips_by_session() -> rusqlite::Result<()> {
+    fn insert_raw_event_record_round_trips_full_crud_fields() -> rusqlite::Result<()> {
         let db = Database::new(":memory:")?;
         let payload_json = serde_json::json!({
             "tool_name": "Bash",
@@ -151,13 +160,18 @@ mod tests {
         })
         .to_string();
 
-        let event_id = db.insert_raw_event(
-            "session-1",
-            "hook",
-            "SessionStart",
-            "2026-04-03T15:00:00Z",
-            &payload_json,
-        )?;
+        let event_id = db.insert_raw_event_record(&NewRawEvent {
+            session_id: Some("session-1"),
+            source: "hook",
+            event_type: "PreToolUse",
+            ts: "2026-04-03T15:00:00Z",
+            tool_use_id: Some("toolu_123"),
+            prompt_id: Some("prompt_123"),
+            agent_id: Some("agent_123"),
+            payload_json: &payload_json,
+            claude_version: Some("2.0.0"),
+            adapter_version: Some("1.0.0"),
+        })?;
 
         assert!(event_id > 0);
 
@@ -167,8 +181,13 @@ mod tests {
         assert_eq!(events[0].id, event_id);
         assert_eq!(events[0].session_id.as_deref(), Some("session-1"));
         assert_eq!(events[0].source, "hook");
-        assert_eq!(events[0].event_type, "SessionStart");
+        assert_eq!(events[0].event_type, "PreToolUse");
+        assert_eq!(events[0].tool_use_id.as_deref(), Some("toolu_123"));
+        assert_eq!(events[0].prompt_id.as_deref(), Some("prompt_123"));
+        assert_eq!(events[0].agent_id.as_deref(), Some("agent_123"));
         assert_eq!(events[0].payload_json, payload_json);
+        assert_eq!(events[0].claude_version.as_deref(), Some("2.0.0"));
+        assert_eq!(events[0].adapter_version.as_deref(), Some("1.0.0"));
 
         Ok(())
     }
@@ -333,111 +352,41 @@ mod tests {
     }
 
     #[test]
-    fn recent_sessions_are_grouped_from_raw_events() -> rusqlite::Result<()> {
+    fn retention_gc_deletes_old_events_and_cleans_fts_rows() -> rusqlite::Result<()> {
         let db = Database::new(":memory:")?;
 
         db.insert_raw_event(
             "session-1",
             "hook",
-            "SessionStart",
-            "2026-04-03T15:00:00Z",
-            &serde_json::json!({ "source": "startup" }).to_string(),
-        )?;
-        db.insert_raw_event(
-            "session-2",
-            "hook",
-            "SessionStart",
-            "2026-04-03T15:05:00Z",
-            &serde_json::json!({ "source": "startup" }).to_string(),
-        )?;
-        db.insert_raw_event(
-            "session-2",
-            "hook",
-            "Notification",
-            "2026-04-03T15:06:00Z",
-            &serde_json::json!({ "message": "done" }).to_string(),
-        )?;
-
-        let sessions = db.list_recent_sessions(10)?;
-
-        assert_eq!(sessions.len(), 2);
-        assert_eq!(sessions[0].session_id, "session-2");
-        assert_eq!(sessions[0].event_count, 2);
-        assert_eq!(sessions[0].last_event_type.as_deref(), Some("Notification"));
-        assert_eq!(sessions[1].session_id, "session-1");
-
-        Ok(())
-    }
-
-    #[test]
-    fn gc_prunes_old_raw_events_and_rebuilds_fts() -> rusqlite::Result<()> {
-        let db = Database::new(":memory:")?;
-
-        db.insert_raw_event(
-            "session-old",
-            "hook",
-            "PreToolUse",
-            "2020-01-01T00:00:00Z",
-            &serde_json::json!({ "tool_name": "Bash" }).to_string(),
-        )?;
-        db.insert_raw_event(
-            "session-new",
-            "hook",
-            "PreToolUse",
-            "2099-01-01T00:00:00Z",
-            &serde_json::json!({ "tool_name": "Bash" }).to_string(),
-        )?;
-
-        let report = db.gc_raw_events(90)?;
-        let events = db.search_fts("Bash")?;
-
-        assert_eq!(report.deleted_events, 1);
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].session_id.as_deref(), Some("session-new"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn normalize_materializes_sessions_from_raw_events() -> rusqlite::Result<()> {
-        let db = Database::new(":memory:")?;
-
-        db.insert_raw_event(
-            "session-1",
-            "hook",
-            "SessionStart",
-            "2026-04-03T15:00:00Z",
+            "UserPromptSubmit",
+            "2026-04-03T14:59:00Z",
             &serde_json::json!({
-                "source": "startup",
-                "cwd": "/workspace/claude-insight",
-                "model": "claude-sonnet",
+                "prompt": "old event that should be deleted",
             })
             .to_string(),
         )?;
         db.insert_raw_event(
             "session-1",
             "hook",
-            "SessionEnd",
-            "2026-04-03T15:05:00Z",
+            "UserPromptSubmit",
+            "2026-04-03T15:00:00Z",
             &serde_json::json!({
-                "reason": "completed",
+                "prompt": "new event that should stay searchable",
             })
             .to_string(),
         )?;
 
-        let report = db.normalize(false)?;
-        let session: (String, Option<String>, Option<String>, Option<String>) = db.conn.query_row(
-            "SELECT id, start_ts, end_ts, model FROM sessions WHERE id = ?1",
-            ["session-1"],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )?;
+        let deleted = db.delete_raw_events_before("2026-04-03T15:00:00Z")?;
+        let remaining = db.query_raw_events(RawEventQuery::default())?;
 
-        assert_eq!(report.events_processed, 2);
-        assert_eq!(report.sessions_touched, 1);
-        assert_eq!(session.0, "session-1");
-        assert_eq!(session.1.as_deref(), Some("2026-04-03T15:00:00Z"));
-        assert_eq!(session.2.as_deref(), Some("2026-04-03T15:05:00Z"));
-        assert_eq!(session.3.as_deref(), Some("claude-sonnet"));
+        assert_eq!(deleted, 1);
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].ts, "2026-04-03T15:00:00Z");
+        assert!(db.search_fts("deleted")?.is_empty());
+
+        let retained = db.search_fts("searchable")?;
+        assert_eq!(retained.len(), 1);
+        assert_eq!(retained[0].ts, "2026-04-03T15:00:00Z");
 
         Ok(())
     }
