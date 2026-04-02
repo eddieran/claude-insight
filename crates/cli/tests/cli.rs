@@ -1,5 +1,6 @@
 use std::{
     fs, io,
+    net::TcpListener,
     path::{Path, PathBuf},
     process::Command,
     time::{SystemTime, UNIX_EPOCH},
@@ -11,6 +12,7 @@ const BIN_PATH: &str = env!("CARGO_BIN_EXE_claude-insight");
 
 struct TestEnv {
     root: PathBuf,
+    capture_port: u16,
 }
 
 impl TestEnv {
@@ -25,7 +27,10 @@ impl TestEnv {
             unique
         ));
         fs::create_dir_all(&root)?;
-        Ok(Self { root })
+        Ok(Self {
+            root,
+            capture_port: next_available_port()?,
+        })
     }
 
     fn app_home(&self) -> &Path {
@@ -42,7 +47,9 @@ impl TestEnv {
 
     fn command(&self) -> Command {
         let mut command = Command::new(BIN_PATH);
-        command.env("CLAUDE_INSIGHT_HOME", self.app_home());
+        command
+            .env("CLAUDE_INSIGHT_HOME", self.app_home())
+            .env("CLAUDE_INSIGHT_CAPTURE_PORT", self.capture_port.to_string());
         command
     }
 }
@@ -51,6 +58,13 @@ impl Drop for TestEnv {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.root);
     }
+}
+
+fn next_available_port() -> io::Result<u16> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let port = listener.local_addr()?.port();
+    drop(listener);
+    Ok(port)
 }
 
 #[test]
