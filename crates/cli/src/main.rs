@@ -14,6 +14,9 @@ use crossterm::style::{Color, Stylize};
 
 type CliResult<T = ()> = Result<T, Box<dyn Error>>;
 
+const DAEMON_WAIT_POLL_INTERVAL_MS: u64 = 100;
+const DAEMON_WAIT_POLLS: usize = 100;
+
 #[derive(Debug, Parser)]
 #[command(
     name = "claude-insight",
@@ -295,7 +298,7 @@ async fn daemon_start() -> CliResult {
         .stderr(Stdio::null())
         .spawn()?;
 
-    for _ in 0..20 {
+    for _ in 0..DAEMON_WAIT_POLLS {
         if let Some(status) = child.try_wait()? {
             return Err(format!("daemon exited early with status {status}").into());
         }
@@ -307,7 +310,7 @@ async fn daemon_start() -> CliResult {
             }
         }
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(DAEMON_WAIT_POLL_INTERVAL_MS));
     }
 
     Err("timed out waiting for daemon pid file".into())
@@ -332,7 +335,7 @@ fn daemon_stop() -> CliResult {
 
     terminate_process(pid)?;
 
-    for _ in 0..20 {
+    for _ in 0..DAEMON_WAIT_POLLS {
         if !is_process_running(pid)? {
             let _ = fs::remove_file(&pid_path);
             println!(
@@ -343,7 +346,7 @@ fn daemon_stop() -> CliResult {
             return Ok(());
         }
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(DAEMON_WAIT_POLL_INTERVAL_MS));
     }
 
     Err(format!("timed out waiting for pid {pid} to stop").into())
