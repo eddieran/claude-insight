@@ -1,0 +1,12 @@
+[package]
+name = "claude-insight-daemon"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+claude-insight-capture.workspace = true
+claude-insight-storage.workspace = true
+tokio.workspace = true
+tracing.workspace = true

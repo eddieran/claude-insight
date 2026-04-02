@@ -1,0 +1,12 @@
+[package]
+name = "claude-insight-tui"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+claude-insight-types.workspace = true
+crossterm.workspace = true
+ratatui.workspace = true
+syntect.workspace = true
+tracing.workspace = true

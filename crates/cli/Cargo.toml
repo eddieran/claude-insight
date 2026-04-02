@@ -1,0 +1,19 @@
+[package]
+name = "claude-insight-cli"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "claude-insight"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+claude-insight-capture.workspace = true
+claude-insight-daemon.workspace = true
+claude-insight-storage.workspace = true
+claude-insight-tui.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

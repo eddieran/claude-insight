@@ -1,0 +1,35 @@
+[workspace]
+members = [
+    "crates/types",
+    "crates/storage",
+    "crates/capture",
+    "crates/daemon",
+    "crates/cli",
+    "crates/tui",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.1.0"
+
+[workspace.dependencies]
+axum = "0.8"
+clap = { version = "4", features = ["derive"] }
+crossterm = "0.28"
+notify = "7"
+ratatui = "0.29"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+syntect = "5"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+claude-insight-capture = { path = "crates/capture" }
+claude-insight-daemon = { path = "crates/daemon" }
+claude-insight-storage = { path = "crates/storage" }
+claude-insight-tui = { path = "crates/tui" }
+claude-insight-types = { path = "crates/types" }
