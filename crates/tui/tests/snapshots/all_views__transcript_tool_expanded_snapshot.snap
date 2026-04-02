@@ -1,0 +1,34 @@
+---
+source: crates/tui/tests/all_views.rs
+expression: "render_to_string(80, 30, |frame|\n{\n    render_transcript_pane(frame, frame.area(), \" Transcript [2] \", true,\n    &transcript, 2,);\n})"
+---
+┌ Transcript [2] ──────────────────────────────────────────────────────────────┐
+│ USER: Build the transcript pane for this session replay.                     │
+│ CLAUDE: I am rendering a real conversation view with tool cards and subagent │
+│         sections.                                                            │
+│ ┌─ Tool: exec_command ────────────────────────────────────────────────────── │
+│ │command: cargo test -p tui -- transcript                                  │ │
+│ │→ Compiling tui v0.1.0                                                    │ │
+│ │  error[E0004]: SessionEventKind::Retry not covered                       │ │
+│ │  help: add a match arm for Retry                                         │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+│ ▏ 🤖 Agent: review [expanded]                                                │
+│ ▏ Use e to collapse or expand this subagent section.                         │
+│ ▏   CLAUDE: Subagent reviewed the transcript widget output and confirmed the │
+│ ▏           tool card shape.                                                 │
+│ CLAUDE: The permission-denied event stays visible in the timeline while the  │
+│         transcript follows the selected entry.                               │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘

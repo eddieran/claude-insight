@@ -4,6 +4,7 @@ pub mod app;
 pub mod evidence;
 pub mod replay;
 pub mod session_list;
+pub mod timeline;
 pub mod transcript;
 pub mod widgets;
 pub mod wizard;
@@ -20,6 +21,7 @@ pub use session_list::{
     render_session_list, MoodFilter, SessionEvent, SessionEventKind, SessionListItem,
     SessionListOverlay, SessionListView, SortOrder,
 };
+pub use timeline::TimelinePane;
 pub use widgets::{
     banner::{ansi_banner, banner_lines, banner_width, ASCII_BANNER},
     mood_badge::{compute_mood, render_mood_badge, Mood},

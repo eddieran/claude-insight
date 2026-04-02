@@ -1,6 +1,6 @@
 ---
-source: crates/tui/src/replay.rs
-expression: "render_replay(sample_state(), 60, 30)"
+source: crates/tui/tests/all_views.rs
+expression: "render_to_string(60, 30, |frame|\n{ ReplayView::render(frame, frame.area(), &state); })"
 ---
 ┌ Replay session-  [Tab] focus  [1/2/3] jump  [Enter] evide┐
 │┌ Timeline [1] ──────────────────────────────────────────┐│

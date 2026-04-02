@@ -413,14 +413,7 @@ fn format_timestamp(timestamp: OffsetDateTime) -> String {
 }
 
 fn event_emoji(kind: SessionEventKind) -> &'static str {
-    match kind {
-        SessionEventKind::Other => "📋",
-        SessionEventKind::Tool => "🔧",
-        SessionEventKind::PermissionRequest => "❓",
-        SessionEventKind::Retry => "🔁",
-        SessionEventKind::PermissionDenied => "🚫",
-        SessionEventKind::PostToolUseFailure | SessionEventKind::StopFailure => "⚠️",
-    }
+    kind.icon()
 }
 
 fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
