@@ -32,4 +32,4 @@ claude-insight-capture = { path = "crates/capture" }
 claude-insight-daemon = { path = "crates/daemon" }
 claude-insight-storage = { path = "crates/storage" }
 claude-insight-tui = { path = "crates/tui" }
-claude-insight-types = { path = "crates/types" }
+claude-insight-types = { path = "crates/types", package = "types" }
