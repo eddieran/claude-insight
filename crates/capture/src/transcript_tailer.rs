@@ -588,7 +588,10 @@ fn file_len(path: &Path) -> Result<u64, TranscriptTailerError> {
 mod tests {
     use super::*;
     use claude_insight_storage::RawEventQuery;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    static TEST_WORKSPACE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn existing_transcript_files_are_baselined_without_backfill(
@@ -734,8 +737,11 @@ mod tests {
     fn watcher_ingests_new_transcript_lines_within_timeout(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let workspace = TestWorkspace::new()?;
-        let mut tailer = TranscriptTailer::new(workspace.config())?;
         let transcript_path = workspace.transcript_path("session-watch.jsonl");
+        append_lines(&transcript_path, &[])?;
+        let mut tailer = TranscriptTailer::new(workspace.config())?;
+
+        std::thread::sleep(Duration::from_millis(50));
 
         append_lines(
             &transcript_path,
@@ -778,9 +784,10 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .map(|duration| duration.as_nanos())
                 .unwrap_or(0);
+            let counter = TEST_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
             let root = std::env::temp_dir().join(format!(
-                "claude-insight-transcript-tailer-{}-{unique}",
-                std::process::id()
+                "claude-insight-transcript-tailer-{}-{unique}-{counter}",
+                std::process::id(),
             ));
             let transcript_root = root.join(".claude/projects");
             let database_path = root.join(".claude-insight/insight.db");
