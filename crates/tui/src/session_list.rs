@@ -12,6 +12,7 @@ use ratatui::{
 };
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 
+use crate::evidence::{EvidenceDetails, LinkedEvent};
 use crate::widgets::{
     mood_badge::{compute_mood, render_mood_badge, Mood},
     sparkline::compute_sparkline_data,
@@ -150,38 +151,127 @@ impl SessionEventKind {
     pub fn is_tool_call(self) -> bool {
         matches!(self, Self::Tool)
     }
+
+    pub fn default_event_type(self) -> &'static str {
+        match self {
+            Self::SessionBoundary => "SessionBoundary",
+            Self::UserPromptSubmit => "UserPromptSubmit",
+            Self::InstructionsLoaded => "InstructionsLoaded",
+            Self::Subagent => "Subagent",
+            Self::Other => "Event",
+            Self::Tool => "Tool",
+            Self::PermissionRequest => "PermissionRequest",
+            Self::Retry => "Retry",
+            Self::PermissionDenied => "PermissionDenied",
+            Self::PostToolUseFailure => "PostToolUseFailure",
+            Self::StopFailure => "StopFailure",
+        }
+    }
+
+    pub fn icon(self) -> &'static str {
+        match self {
+            Self::SessionBoundary => "📋",
+            Self::UserPromptSubmit => "💬",
+            Self::InstructionsLoaded => "📖",
+            Self::Subagent => "🤖",
+            Self::Other => "📋",
+            Self::Tool => "🔧",
+            Self::PermissionRequest => "🛡️",
+            Self::Retry => "🔁",
+            Self::PermissionDenied => "🚫",
+            Self::PostToolUseFailure | Self::StopFailure => "⚠️",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionEvent {
+    pub raw_event_id: Option<i64>,
     pub kind: SessionEventKind,
+    pub event_type: String,
     pub timestamp: OffsetDateTime,
     pub tool_use_id: Option<String>,
     pub label: String,
+    pub evidence: EvidenceDetails,
 }
 
 impl SessionEvent {
     pub fn new(kind: SessionEventKind, timestamp: OffsetDateTime) -> Self {
         Self {
+            raw_event_id: None,
             kind,
+            event_type: kind.default_event_type().to_string(),
             timestamp,
             tool_use_id: None,
             label: kind.default_label().to_string(),
+            evidence: EvidenceDetails::default(),
         }
     }
 
     pub fn tool(tool_use_id: impl Into<String>, timestamp: OffsetDateTime) -> Self {
         Self {
+            raw_event_id: None,
             kind: SessionEventKind::Tool,
+            event_type: SessionEventKind::Tool.default_event_type().to_string(),
             timestamp,
             tool_use_id: Some(tool_use_id.into()),
             label: SessionEventKind::Tool.default_label().to_string(),
+            evidence: EvidenceDetails::default(),
         }
+    }
+
+    pub fn named(
+        kind: SessionEventKind,
+        event_type: impl Into<String>,
+        timestamp: OffsetDateTime,
+    ) -> Self {
+        let event_type = event_type.into();
+        Self {
+            raw_event_id: None,
+            kind,
+            event_type: event_type.clone(),
+            timestamp,
+            tool_use_id: None,
+            label: event_type,
+            evidence: EvidenceDetails::default(),
+        }
+    }
+
+    pub fn with_raw_event_id(mut self, raw_event_id: i64) -> Self {
+        self.raw_event_id = Some(raw_event_id);
+        self
+    }
+
+    pub fn with_event_type(mut self, event_type: impl Into<String>) -> Self {
+        self.event_type = event_type.into();
+        self
     }
 
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
         self.label = label.into();
         self
+    }
+
+    pub fn with_evidence(mut self, evidence: EvidenceDetails) -> Self {
+        self.evidence = evidence;
+        self
+    }
+
+    pub fn with_linked_events(mut self, linked_events: Vec<LinkedEvent>) -> Self {
+        self.evidence.linked_events = linked_events;
+        self
+    }
+
+    pub fn event_type(&self) -> &str {
+        &self.event_type
+    }
+
+    pub fn evidence(&self) -> &EvidenceDetails {
+        &self.evidence
+    }
+
+    pub fn kind_icon(&self) -> &'static str {
+        self.kind.icon()
     }
 }
 

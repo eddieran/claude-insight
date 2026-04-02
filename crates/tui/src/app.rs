@@ -15,7 +15,7 @@ pub enum AppAction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppView {
     SessionList,
-    Replay(ReplayViewState),
+    Replay(Box<ReplayViewState>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -80,7 +80,9 @@ impl App {
                 {
                     if let Some(session) = self.session_list.selected_session() {
                         let session_id = session.session_id.clone();
-                        self.view = AppView::Replay(ReplayViewState::from_session(session.clone()));
+                        self.view = AppView::Replay(Box::new(ReplayViewState::from_session(
+                            session.clone(),
+                        )));
                         return AppAction::OpenReplay { session_id };
                     }
                 }
@@ -141,7 +143,9 @@ mod tests {
         );
         assert_eq!(
             app.view(),
-            &AppView::Replay(ReplayViewState::from_session(sample_sessions()[0].clone()))
+            &AppView::Replay(Box::new(ReplayViewState::from_session(
+                sample_sessions()[0].clone(),
+            )))
         );
     }
 
