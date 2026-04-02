@@ -1,8 +1,11 @@
 [package]
-name = "claude-insight-types"
+name = "types"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
+
+[lib]
+name = "claude_insight_types"
 
 [dependencies]
 serde.workspace = true
