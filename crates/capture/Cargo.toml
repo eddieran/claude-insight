@@ -9,6 +9,7 @@ axum.workspace = true
 claude-insight-storage.workspace = true
 claude-insight-types.workspace = true
 notify.workspace = true
+rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 time = { version = "0.3", features = ["formatting"] }
