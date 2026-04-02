@@ -12,7 +12,6 @@ use ratatui::{
 };
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 
-use crate::evidence::{EvidenceDetails, InstructionProvenance, LinkedEvent, PermissionDetails};
 use crate::widgets::{
     mood_badge::{compute_mood, render_mood_badge, Mood},
     sparkline::compute_sparkline_data,
@@ -100,6 +99,10 @@ pub enum SessionListOverlay {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionEventKind {
+    SessionBoundary,
+    UserPromptSubmit,
+    InstructionsLoaded,
+    Subagent,
     Other,
     Tool,
     PermissionRequest,
@@ -112,6 +115,12 @@ pub enum SessionEventKind {
 impl SessionEventKind {
     pub fn from_event_type(event_type: &str) -> Self {
         match event_type {
+            "SessionStart" | "SessionEnd" | "TaskCreated" | "TaskCompleted" => {
+                Self::SessionBoundary
+            }
+            "UserPromptSubmit" => Self::UserPromptSubmit,
+            "InstructionsLoaded" => Self::InstructionsLoaded,
+            "SubagentStart" | "SubagentStop" => Self::Subagent,
             "PreToolUse" | "PostToolUse" => Self::Tool,
             "PermissionRequest" => Self::PermissionRequest,
             "Retry" => Self::Retry,
@@ -121,84 +130,58 @@ impl SessionEventKind {
             _ => Self::Other,
         }
     }
+
+    pub fn default_label(self) -> &'static str {
+        match self {
+            Self::SessionBoundary => "Session boundary",
+            Self::UserPromptSubmit => "User prompt",
+            Self::InstructionsLoaded => "Instructions loaded",
+            Self::Subagent => "Subagent lifecycle",
+            Self::Other => "Event",
+            Self::Tool => "Tool call",
+            Self::PermissionRequest => "Permission allowed",
+            Self::Retry => "Retry",
+            Self::PermissionDenied => "Permission denied",
+            Self::PostToolUseFailure => "Tool failure",
+            Self::StopFailure => "Stop failure",
+        }
+    }
+
+    pub fn is_tool_call(self) -> bool {
+        matches!(self, Self::Tool)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionEvent {
-    pub event_type: String,
     pub kind: SessionEventKind,
     pub timestamp: OffsetDateTime,
     pub tool_use_id: Option<String>,
-    pub evidence: EvidenceDetails,
+    pub label: String,
 }
 
 impl SessionEvent {
     pub fn new(kind: SessionEventKind, timestamp: OffsetDateTime) -> Self {
-        Self::named(kind, default_event_type(kind), timestamp)
-    }
-
-    pub fn named(
-        kind: SessionEventKind,
-        event_type: impl Into<String>,
-        timestamp: OffsetDateTime,
-    ) -> Self {
         Self {
-            event_type: event_type.into(),
             kind,
             timestamp,
             tool_use_id: None,
-            evidence: EvidenceDetails::default(),
+            label: kind.default_label().to_string(),
         }
     }
 
     pub fn tool(tool_use_id: impl Into<String>, timestamp: OffsetDateTime) -> Self {
         Self {
-            event_type: "PreToolUse".to_string(),
             kind: SessionEventKind::Tool,
             timestamp,
             tool_use_id: Some(tool_use_id.into()),
-            evidence: EvidenceDetails::default(),
+            label: SessionEventKind::Tool.default_label().to_string(),
         }
     }
 
-    pub fn with_raw_json(mut self, raw_json: impl Into<String>) -> Self {
-        self.evidence =
-            std::mem::take(&mut self.evidence).with_raw_json(&self.event_type, raw_json);
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
         self
-    }
-
-    pub fn with_linked_events(mut self, linked_events: Vec<LinkedEvent>) -> Self {
-        self.evidence.linked_events = linked_events;
-        self
-    }
-
-    pub fn with_permission(mut self, permission: PermissionDetails) -> Self {
-        self.evidence.permission = Some(permission);
-        self
-    }
-
-    pub fn with_instruction_provenance(mut self, provenance: InstructionProvenance) -> Self {
-        self.evidence.instruction_provenance = Some(provenance);
-        self
-    }
-
-    pub fn evidence(&self) -> &EvidenceDetails {
-        &self.evidence
-    }
-
-    pub fn event_type(&self) -> &str {
-        &self.event_type
-    }
-
-    pub fn kind_icon(&self) -> &'static str {
-        match self.kind {
-            SessionEventKind::Other => "📋",
-            SessionEventKind::Tool => "🔧",
-            SessionEventKind::PermissionRequest => "❓",
-            SessionEventKind::Retry => "🔁",
-            SessionEventKind::PermissionDenied => "🚫",
-            SessionEventKind::PostToolUseFailure | SessionEventKind::StopFailure => "⚠️",
-        }
     }
 }
 
@@ -764,18 +747,6 @@ fn format_relative_time(delta: Duration) -> String {
         60..=3_599 => format!("{}min ago", seconds / 60),
         3_600..=86_399 => format!("{}hr ago", seconds / 3_600),
         _ => format!("{}d ago", seconds / 86_400),
-    }
-}
-
-fn default_event_type(kind: SessionEventKind) -> &'static str {
-    match kind {
-        SessionEventKind::Other => "Event",
-        SessionEventKind::Tool => "PreToolUse",
-        SessionEventKind::PermissionRequest => "PermissionRequest",
-        SessionEventKind::Retry => "Retry",
-        SessionEventKind::PermissionDenied => "PermissionDenied",
-        SessionEventKind::PostToolUseFailure => "PostToolUseFailure",
-        SessionEventKind::StopFailure => "StopFailure",
     }
 }
 

@@ -1,15 +1,27 @@
 ---
 source: crates/tui/src/replay.rs
-assertion_line: 519
-expression: "render_replay(sample_selected_state(), 120, 40)"
+assertion_line: 498
+expression: "render_replay(sample_state(), 120, 40)"
 ---
 ┌ Replay session-  [Tab] focus  [1/2/3] jump  [Enter] evidence  [Esc] back ────────────────────────────────────────────┐
 │┌ Timeline [1] ───────────────────────────────────────────┐┌ Transcript [2] ─────────────────────────────────────────┐│
-││   🔧 2026-04-03T01:07:00Z                               ││ session session-                                        ││
-││   ❓ 2026-04-03T01:07:05Z                               ││ branch feature/replay-layout                            ││
-││ ▸ 🚫 2026-04-03T01:07:10Z  [selected]                   ││                                                         ││
-││                                                         ││ Transcript content lands in MOT-130.                    ││
-││                                                         ││ This ticket wires layout, focus, and responsive behavio ││
+││   📋 2026-04-03T01:06:40Z                               ││ USER: Build the transcript pane for this session        ││
+││   📋 2026-04-03T01:06:50Z                               ││       replay.                                           ││
+││   🔧 2026-04-03T01:07:00Z                               ││ CLAUDE: I am rendering a real conversation view with    ││
+││   ❓ 2026-04-03T01:07:05Z                               ││         tool cards and subagent sections.               ││
+││   🔧 2026-04-03T01:07:07Z                               ││ ┌─ Tool: exec_command ───────────────────────────────── ││
+││ ▸ 🚫 2026-04-03T01:07:10Z                               ││ │command: cargo test -p tui -- transcript             │ ││
+││                                                         ││ │→ Compiling tui v0.1.0                               │ ││
+││                                                         ││ │  error[E0004]: SessionEventKind::Retry not covered  │ ││
+││                                                         ││ │  help: add a match arm for Retry                    │ ││
+││                                                         ││ └─────────────────────────────────────────────────────┘ ││
+││                                                         ││ ▏ 🤖 Agent: review [expanded]                           ││
+││                                                         ││ ▏ Use e to collapse or expand this subagent section.    ││
+││                                                         ││ ▏   CLAUDE: Subagent reviewed the transcript widget     ││
+││                                                         ││ ▏           output and confirmed the tool card shape.   ││
+││                                                         ││ CLAUDE: The permission-denied event stays visible in    ││
+││                                                         ││         the timeline while the transcript follows the   ││
+││                                                         ││         selected entry.                                 ││
 ││                                                         ││                                                         ││
 ││                                                         ││                                                         ││
 ││                                                         ││                                                         ││
@@ -22,24 +34,12 @@ expression: "render_replay(sample_selected_state(), 120, 40)"
 ││                                                         ││                                                         ││
 ││                                                         ││                                                         ││
 ││                                                         ││                                                         ││
-││                                                         ┌ Evidence [3] ────────────────────────────────────────────┐│
-││                                                         │ InstructionsLoaded                                       ││
-││                                                         │ 🚫  01:07:10                                             ││
-││                                                         │                                                          ││
-││                                                         │ Instruction Provenance                                   ││
-││                                                         │ File: /workspace/claude-insight/CLAUDE.md                ││
-││                                                         │ Memory: project                                          ││
-││                                                         │ Reason: session-start                                    ││
-││                                                         │                                                          ││
-││                                                         │ Linked Events                                            ││
-││                                                         │ ├── PreToolUse (01:07:00)                                ││
-││                                                         │ └── PostToolUse (01:07:12)                               ││
-││                                                         │                                                          ││
-││                                                         │ Raw JSON                                                 ││
-││                                                         │ {                                                        ││
-││                                                         │   "file_path": "/workspace/claude-insight/CLAUDE.md",    ││
-││                                                         │   "hook_event_name": "InstructionsLoaded",               ││
-││                                                         └──────────────────────────────────────────────────────────┘│
+││                                                         ││                                                         ││
+││                                                         ││                                                         ││
+││                                                         ││                                                         ││
+││                                                         ││                                                         ││
+││                                                         ││                                                         ││
+││                                                         ││                                                         ││
 │└─────────────────────────────────────────────────────────┘└─────────────────────────────────────────────────────────┘│
-│                        session- • $0.42 • 384 tok • 1 tools • 🔴 errors • 2026-04-03T01:07:10Z                       │
+│                        session- • $0.42 • 768 tok • 2 tools • 🔴 errors • 2026-04-03T01:07:10Z                       │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

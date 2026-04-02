@@ -158,12 +158,13 @@ async fn handle_init(global: bool, capture_content: bool) -> CliResult {
         "status=started"
     };
 
-    print!("{}", claude_insight_tui::ansi_banner());
+    println!("{}", claude_insight_tui::ASCII_BANNER);
     println!(
         "{} {}",
         "Initialized".green().bold(),
         "Claude Insight".white().bold()
     );
+    println!("{}", "Local observability for Claude Code".dark_grey());
     println!("settings: {}", settings_path.display().to_string().cyan());
     println!(
         "hooks: {}",

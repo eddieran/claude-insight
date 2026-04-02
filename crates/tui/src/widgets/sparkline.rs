@@ -1,4 +1,7 @@
+use ratatui::{style::Style, symbols, widgets::Sparkline};
+
 use crate::session_list::SessionEvent;
+use crate::session_list::ACCENT_GREEN;
 
 pub fn compute_sparkline_data(events: &[SessionEvent], bucket_size_secs: i64) -> Vec<u64> {
     if events.is_empty() {
@@ -27,6 +30,14 @@ pub fn compute_sparkline_data(events: &[SessionEvent], bucket_size_secs: i64) ->
     }
 
     buckets
+}
+
+pub fn activity_sparkline<'a>(data: &'a [u64]) -> Sparkline<'a> {
+    Sparkline::default()
+        .data(data.to_vec())
+        .bar_set(symbols::bar::NINE_LEVELS)
+        .style(Style::new().fg(ACCENT_GREEN))
+        .max(data.iter().copied().max().unwrap_or(1))
 }
 
 #[cfg(test)]
