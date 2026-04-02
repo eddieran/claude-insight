@@ -1,5 +1,8 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
+pub mod backlog;
+pub mod transcript_tailer;
+
 use std::{
     net::{Ipv4Addr, SocketAddr},
     path::PathBuf,
@@ -375,5 +378,44 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(payload["status"], HEALTH_STATUS);
         assert_eq!(payload["event_count"], 1);
+    }
+
+    #[tokio::test]
+    async fn hook_receiver_storage_failure_returns_internal_server_error(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let database_path = std::env::temp_dir().join(format!(
+            "claude-insight-hook-receiver-failure-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&database_path)?;
+        let config = CaptureConfig::default().with_database_path(&database_path);
+        let app = hooks_router_with_config(config);
+        let payload = include_str!("../../../tests/fixtures/hooks/SessionStart.json");
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/hooks")
+                    .header("content-type", "application/json")
+                    .body(Body::from(payload))
+                    .unwrap_or_else(|error| panic!("failed to build request: {error}")),
+            )
+            .await
+            .unwrap_or_else(|error| panic!("request failed: {error}"));
+        let status = response.status();
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap_or_else(|error| panic!("failed to read response body: {error}"));
+        let body = String::from_utf8(body.to_vec())?;
+
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert!(body.contains("failed to open database"));
+        std::fs::remove_dir_all(&database_path)?;
+
+        Ok(())
     }
 }
