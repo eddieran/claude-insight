@@ -319,6 +319,6 @@ cargo fmt --all -- --check
 
 ## Distribution
 
-- Single binary via `cargo install claude-insight` or GitHub Releases
+- Single binary via `cargo install --git https://github.com/eddieran/claude-insight --bin claude-insight` or GitHub Releases
 - 6 targets: linux-x86_64, linux-aarch64, darwin-x86_64, darwin-aarch64, windows-x86_64, windows-aarch64
 - No runtime dependencies

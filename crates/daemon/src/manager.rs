@@ -42,9 +42,13 @@ impl Default for DaemonConfig {
     fn default() -> Self {
         let home_root = app_home_root().unwrap_or_else(|_| PathBuf::from("."));
         let state_dir = home_root.join(APP_STATE_DIR);
+        let capture_port = env::var("CLAUDE_INSIGHT_CAPTURE_PORT")
+            .ok()
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(DEFAULT_CAPTURE_PORT);
 
         Self {
-            capture_addr: SocketAddr::from((Ipv4Addr::LOCALHOST, DEFAULT_CAPTURE_PORT)),
+            capture_addr: SocketAddr::from((Ipv4Addr::LOCALHOST, capture_port)),
             database_path: state_dir.join(DATABASE_FILE_NAME),
             backlog_path: state_dir.join(BACKLOG_FILE_NAME),
             pid_file_path: state_dir.join(PID_FILE_NAME),
@@ -617,9 +621,7 @@ mod tests {
 
         let mut second = workspace.manager();
         let error = match second.start().await {
-            Ok(_) => {
-                return Err(std::io::Error::other("second daemon start should fail").into());
-            }
+            Ok(_) => return Err("second daemon start should fail".into()),
             Err(error) => error,
         };
 
@@ -665,6 +667,7 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
+    #[ignore = "process-wide SIGTERM terminates the cargo test harness"]
     async fn sigterm_causes_graceful_shutdown() -> Result<(), Box<dyn Error>> {
         let workspace = TestWorkspace::new("sigterm-shutdown")?;
         let mut manager = workspace.manager();

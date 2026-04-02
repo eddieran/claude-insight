@@ -78,6 +78,10 @@ impl Database {
         normalizer::normalize(self)
     }
 
+    pub fn rebuild(&self) -> rusqlite::Result<NormalizationStats> {
+        normalizer::rebuild(self)
+    }
+
     pub fn normalization_watermark(&self) -> rusqlite::Result<i64> {
         self.conn.query_row(
             "SELECT last_raw_event_id

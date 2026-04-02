@@ -273,7 +273,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "claude-insight"
+name = "claude-insight-workspace"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "capture",
+ "rusqlite",
+ "serde_json",
+ "storage",
+ "tempfile",
+ "tokio",
+ "tower",
+]
+
+[[package]]
+name = "cli"
 version = "0.1.0"
 dependencies = [
  "capture",
@@ -286,20 +300,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tui",
-]
-
-[[package]]
-name = "claude-insight-workspace"
-version = "0.1.0"
-dependencies = [
- "axum",
- "capture",
- "rusqlite",
- "serde_json",
- "storage",
- "tempfile",
- "tokio",
- "tower",
 ]
 
 [[package]]

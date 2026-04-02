@@ -506,7 +506,7 @@ Per-model granularity. Saved to `~/.claude/projects/<project>/config.json` on se
 ## Design Decisions (Resolved)
 
 ### D1: Tech stack — Rust + Ratatui TUI (REVISED from React/Vite)
-**Language:** Rust. **TUI:** Ratatui + crossterm. **HTTP:** axum (daemon for hook events). **Storage:** rusqlite. **JSON:** serde_json + serde. **CLI:** clap. **Distribution:** Single binary via `cargo install claude-insight` + GitHub Releases (linux/darwin/windows, amd64/arm64). No npm, no node_modules, no native compilation issues. Just download and run.
+**Language:** Rust. **TUI:** Ratatui + crossterm. **HTTP:** axum (daemon for hook events). **Storage:** rusqlite. **JSON:** serde_json + serde. **CLI:** clap. **Distribution:** Single binary via `cargo install --git https://github.com/eddieran/claude-insight --bin claude-insight` + GitHub Releases (linux/darwin/windows, amd64/arm64). No npm, no node_modules, no native compilation issues. Just download and run.
 
 Rationale: The user chose TUI over web UI. For a complex three-pane terminal debugger with syntax highlighting, scrollable lists, and animations, Ratatui is the gold standard. Single-binary distribution eliminates all packaging friction.
 
@@ -903,7 +903,7 @@ EVIDENCE PANE:
 ## Distribution Plan
 
 - GitHub repository (open source, MIT or Apache-2.0)
-- Single binary: `cargo install claude-insight` or download from GitHub Releases
+- Single binary: `cargo install --git https://github.com/eddieran/claude-insight --bin claude-insight` or download from GitHub Releases
 - Cross-platform: linux/darwin/windows, amd64/arm64 (6 targets via cross-compilation)
 - GitHub Actions CI: `cargo test` + `cargo clippy` on PR. Release workflow builds all 6 targets on tag push.
 - Installation: download binary + `claude-insight init` (installs hooks + starts daemon)
