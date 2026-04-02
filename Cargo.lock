@@ -252,12 +252,12 @@ name = "claude-insight-capture"
 version = "0.1.0"
 dependencies = [
  "axum",
- "claude-insight-types",
  "notify",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
+ "types",
 ]
 
 [[package]]
@@ -289,31 +289,22 @@ dependencies = [
 name = "claude-insight-storage"
 version = "0.1.0"
 dependencies = [
- "claude-insight-types",
  "rusqlite",
  "serde",
  "serde_json",
  "tracing",
+ "types",
 ]
 
 [[package]]
 name = "claude-insight-tui"
 version = "0.1.0"
 dependencies = [
- "claude-insight-types",
  "crossterm",
  "ratatui",
  "syntect",
  "tracing",
-]
-
-[[package]]
-name = "claude-insight-types"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "tracing",
+ "types",
 ]
 
 [[package]]
@@ -1557,6 +1548,15 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "types"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tracing",
 ]
 
 [[package]]
