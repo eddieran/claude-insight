@@ -544,6 +544,7 @@ pub struct StagedCollapse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
 
     const COMPREHENSIVE_FIXTURE: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -554,10 +555,48 @@ mod tests {
         "/../../tests/fixtures/transcripts/auth-failure.observed.jsonl"
     ));
 
+    fn fixture_lines() -> impl Iterator<Item = &'static str> {
+        COMPREHENSIVE_FIXTURE
+            .lines()
+            .chain(AUTH_FAILURE_FIXTURE.lines())
+            .filter(|line| !line.trim().is_empty())
+    }
+
+    fn fixture_value_by_type(entry_type: &str) -> Value {
+        fixture_lines()
+            .find_map(|line| {
+                let value = serde_json::from_str::<Value>(line)
+                    .unwrap_or_else(|error| panic!("failed to parse fixture line: {error}"));
+                (value.get("type").and_then(Value::as_str) == Some(entry_type)).then_some(value)
+            })
+            .unwrap_or_else(|| panic!("no transcript fixture line found for type {entry_type}"))
+    }
+
+    fn fixture_entry_by_type(entry_type: &str) -> TranscriptEntry {
+        serde_json::from_value(fixture_value_by_type(entry_type)).unwrap_or_else(|error| {
+            panic!("failed to deserialize transcript fixture type {entry_type}: {error}")
+        })
+    }
+
+    macro_rules! transcript_fixture_test {
+        ($test_name:ident, $entry_type:literal, $pattern:pat) => {
+            #[test]
+            fn $test_name() {
+                let entry = fixture_entry_by_type($entry_type);
+                assert!(
+                    matches!(entry, $pattern),
+                    "fixture type {} deserialized to unexpected variant: {:?}",
+                    $entry_type,
+                    entry
+                );
+            }
+        };
+    }
+
     #[test]
     fn transcript_deserializes_all_fixture_lines() {
-        let entries = fixture_entries(COMPREHENSIVE_FIXTURE)
-            .chain(fixture_entries(AUTH_FAILURE_FIXTURE))
+        let entries = fixture_lines()
+            .map(serde_json::from_str::<TranscriptEntry>)
             .collect::<Result<Vec<_>, _>>()
             .expect("fixture lines should deserialize");
 
@@ -566,6 +605,127 @@ mod tests {
             .iter()
             .all(|entry| !matches!(entry, TranscriptEntry::Unknown(_))));
     }
+
+    transcript_fixture_test!(
+        transcript_agent_color_fixture_deserializes,
+        "agent-color",
+        TranscriptEntry::AgentColor(_)
+    );
+    transcript_fixture_test!(
+        transcript_agent_name_fixture_deserializes,
+        "agent-name",
+        TranscriptEntry::AgentName(_)
+    );
+    transcript_fixture_test!(
+        transcript_agent_setting_fixture_deserializes,
+        "agent-setting",
+        TranscriptEntry::AgentSetting(_)
+    );
+    transcript_fixture_test!(
+        transcript_ai_title_fixture_deserializes,
+        "ai-title",
+        TranscriptEntry::AiTitle(_)
+    );
+    transcript_fixture_test!(
+        transcript_assistant_fixture_deserializes,
+        "assistant",
+        TranscriptEntry::Message(_)
+    );
+    transcript_fixture_test!(
+        transcript_attachment_fixture_deserializes,
+        "attachment",
+        TranscriptEntry::Message(_)
+    );
+    transcript_fixture_test!(
+        transcript_attribution_snapshot_fixture_deserializes,
+        "attribution-snapshot",
+        TranscriptEntry::AttributionSnapshot(_)
+    );
+    transcript_fixture_test!(
+        transcript_content_replacement_fixture_deserializes,
+        "content-replacement",
+        TranscriptEntry::ContentReplacement(_)
+    );
+    transcript_fixture_test!(
+        transcript_custom_title_fixture_deserializes,
+        "custom-title",
+        TranscriptEntry::CustomTitle(_)
+    );
+    transcript_fixture_test!(
+        transcript_file_history_snapshot_fixture_deserializes,
+        "file-history-snapshot",
+        TranscriptEntry::FileHistorySnapshot(_)
+    );
+    transcript_fixture_test!(
+        transcript_last_prompt_fixture_deserializes,
+        "last-prompt",
+        TranscriptEntry::LastPrompt(_)
+    );
+    transcript_fixture_test!(
+        transcript_mode_fixture_deserializes,
+        "mode",
+        TranscriptEntry::Mode(_)
+    );
+    transcript_fixture_test!(
+        transcript_progress_fixture_deserializes,
+        "progress",
+        TranscriptEntry::Progress(_)
+    );
+    transcript_fixture_test!(
+        transcript_pr_link_fixture_deserializes,
+        "pr-link",
+        TranscriptEntry::PRLink(_)
+    );
+    transcript_fixture_test!(
+        transcript_queue_operation_fixture_deserializes,
+        "queue-operation",
+        TranscriptEntry::QueueOperation(_)
+    );
+    transcript_fixture_test!(
+        transcript_speculation_accept_fixture_deserializes,
+        "speculation-accept",
+        TranscriptEntry::SpeculationAccept(_)
+    );
+    transcript_fixture_test!(
+        transcript_summary_fixture_deserializes,
+        "summary",
+        TranscriptEntry::Summary(_)
+    );
+    transcript_fixture_test!(
+        transcript_system_fixture_deserializes,
+        "system",
+        TranscriptEntry::Message(_)
+    );
+    transcript_fixture_test!(
+        transcript_tag_fixture_deserializes,
+        "tag",
+        TranscriptEntry::Tag(_)
+    );
+    transcript_fixture_test!(
+        transcript_task_summary_fixture_deserializes,
+        "task-summary",
+        TranscriptEntry::TaskSummary(_)
+    );
+    transcript_fixture_test!(
+        transcript_user_fixture_deserializes,
+        "user",
+        TranscriptEntry::Message(_)
+    );
+    transcript_fixture_test!(
+        transcript_worktree_state_fixture_deserializes,
+        "worktree-state",
+        TranscriptEntry::WorktreeState(_)
+    );
+    transcript_fixture_test!(
+        transcript_context_collapse_commit_fixture_deserializes,
+        "marble-origami-commit",
+        TranscriptEntry::ContextCollapseCommit(_)
+    );
+    transcript_fixture_test!(
+        transcript_context_collapse_snapshot_fixture_deserializes,
+        "marble-origami-snapshot",
+        TranscriptEntry::ContextCollapseSnapshot(_)
+    );
 
     #[test]
     fn transcript_unknown_entry_type_deserializes_to_unknown() {
@@ -581,6 +741,28 @@ mod tests {
             }
             other => panic!("expected unknown transcript entry, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn transcript_unknown_fields_are_ignored_during_deserialization() {
+        let mut value = fixture_value_by_type("assistant");
+        let object = value
+            .as_object_mut()
+            .expect("assistant fixture should be a JSON object");
+
+        object.insert(
+            "future_field".to_owned(),
+            serde_json::json!("forward-compatible"),
+        );
+        object.insert(
+            "future_nested".to_owned(),
+            serde_json::json!({ "enabled": true }),
+        );
+
+        let entry = serde_json::from_value::<TranscriptEntry>(value)
+            .expect("augmented transcript entry should deserialize");
+
+        assert!(matches!(entry, TranscriptEntry::Message(_)));
     }
 
     #[test]
@@ -622,14 +804,5 @@ mod tests {
         assert!(matches!(blocks[0], ContentBlock::Text(_)));
         assert!(matches!(blocks[1], ContentBlock::ToolUse(_)));
         assert!(matches!(blocks[2], ContentBlock::ToolResult(_)));
-    }
-
-    fn fixture_entries(
-        fixture: &str,
-    ) -> impl Iterator<Item = Result<TranscriptEntry, serde_json::Error>> + '_ {
-        fixture
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .map(serde_json::from_str::<TranscriptEntry>)
     }
 }
