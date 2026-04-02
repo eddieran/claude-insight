@@ -166,6 +166,7 @@ fn normalize_materializes_sessions_table() -> Result<(), Box<dyn std::error::Err
             "source": "startup",
             "transcript_path": "/tmp/session-1/transcript.jsonl",
             "cwd": "/workspace/claude-insight",
+            "transcript_path": "/workspace/.claude/projects/claude-insight/session-1.jsonl",
         })
         .to_string(),
     )?;

@@ -48,7 +48,11 @@ impl Database {
     }
 
     pub fn default_dir() -> rusqlite::Result<PathBuf> {
-        match std::env::var_os("CLAUDE_INSIGHT_HOME").or_else(|| std::env::var_os("HOME")) {
+        if let Some(home) = std::env::var_os("CLAUDE_INSIGHT_HOME") {
+            return Ok(PathBuf::from(home).join(DEFAULT_DATABASE_DIR));
+        }
+
+        match std::env::var_os("HOME") {
             Some(home) => Ok(PathBuf::from(home).join(DEFAULT_DATABASE_DIR)),
             None => Err(rusqlite::Error::InvalidPath(PathBuf::from(
                 "~/.claude-insight",
@@ -70,25 +74,6 @@ impl Database {
 
     pub fn normalize(&self) -> rusqlite::Result<NormalizationStats> {
         normalizer::normalize(self)
-    }
-
-    pub fn rebuild_normalized(&self) -> rusqlite::Result<NormalizationStats> {
-        self.conn.execute_batch(
-            "
-            DELETE FROM event_links;
-            DELETE FROM config_snapshots;
-            DELETE FROM instruction_loads;
-            DELETE FROM permission_decisions;
-            DELETE FROM tool_invocations;
-            DELETE FROM prompts;
-            DELETE FROM sessions;
-            UPDATE normalization_state
-            SET last_raw_event_id = 0
-            WHERE id = 1;
-            ",
-        )?;
-
-        self.normalize()
     }
 
     pub fn normalization_watermark(&self) -> rusqlite::Result<i64> {

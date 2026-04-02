@@ -170,6 +170,11 @@ impl Database {
         self.conn
             .query_row("SELECT COUNT(*) FROM raw_events", [], |row| row.get(0))
     }
+
+    pub fn delete_raw_events_before(&self, ts: &str) -> rusqlite::Result<usize> {
+        self.conn
+            .execute("DELETE FROM raw_events WHERE ts < ?1", params![ts])
+    }
 }
 
 pub(crate) fn map_raw_event(row: &Row<'_>) -> rusqlite::Result<RawEvent> {
