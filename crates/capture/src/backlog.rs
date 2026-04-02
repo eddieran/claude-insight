@@ -356,6 +356,48 @@ mod tests {
     }
 
     #[test]
+    fn backlog_append_rejects_empty_payload() {
+        let temp_root = temp_backlog_root("empty-payload");
+        let backlog_path = temp_root.join("backlog.jsonl");
+        let writer = BacklogWriter::new(&backlog_path);
+
+        let error = match writer.append("\n") {
+            Ok(()) => panic!("empty payload should be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(error, BacklogError::EmptyEvent));
+    }
+
+    #[test]
+    fn backlog_process_rejects_malformed_records() -> Result<(), Box<dyn Error>> {
+        let temp_root = temp_backlog_root("malformed-record");
+        let backlog_path = temp_root.join(".claude-insight").join("backlog.jsonl");
+        if let Some(parent) = backlog_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&backlog_path, "{\"hook_event_name\":\"Notification\"}\n")?;
+
+        let db = Database::new(":memory:")?;
+        let processor = BacklogProcessor::new(&backlog_path);
+        let error = match processor.process(&db) {
+            Ok(_) => panic!("malformed backlog line should fail"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(
+            error,
+            BacklogError::InvalidField {
+                line_number: 1,
+                field: "session_id"
+            }
+        ));
+        std::fs::remove_dir_all(&temp_root)?;
+
+        Ok(())
+    }
+
+    #[test]
     fn backlog_process_moves_events_into_database_and_clears_file() -> Result<(), Box<dyn Error>> {
         let temp_root = temp_backlog_root("process");
         let backlog_path = temp_root.join(".claude-insight").join("backlog.jsonl");

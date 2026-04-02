@@ -322,6 +322,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn hook_receiver_unknown_event_type_is_persisted() {
+        let (app, database_path) = router_for_test("unknown-hook-event");
+        let mut payload = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../../tests/fixtures/hooks/Notification.json"
+        ))
+        .unwrap_or_else(|error| panic!("failed to parse fixture json: {error}"));
+        let object = payload
+            .as_object_mut()
+            .unwrap_or_else(|| panic!("notification fixture should be a json object"));
+        object.insert(
+            "hook_event_name".to_owned(),
+            serde_json::json!("FutureHookEvent"),
+        );
+        object.insert("future_field".to_owned(), serde_json::json!(42));
+        let payload = serde_json::to_vec(&payload)
+            .unwrap_or_else(|error| panic!("failed to serialize request json: {error}"));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/hooks")
+                    .header("content-type", "application/json")
+                    .body(Body::from(payload))
+                    .unwrap_or_else(|error| panic!("failed to build request: {error}")),
+            )
+            .await
+            .unwrap_or_else(|error| panic!("request failed: {error}"));
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let database = Database::new(&database_path)
+            .unwrap_or_else(|error| panic!("failed to open sqlite database: {error}"));
+        let events = database
+            .query_raw_events(RawEventQuery {
+                event_type: Some("Unknown"),
+                ..RawEventQuery::default()
+            })
+            .unwrap_or_else(|error| panic!("failed to query raw events: {error}"));
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].source, HOOK_SOURCE);
+        assert_eq!(events[0].event_type, "Unknown");
+        assert!(events[0].payload_json.contains("\"FutureHookEvent\""));
+    }
+
+    #[tokio::test]
     async fn hook_receiver_bad_json_returns_bad_request() {
         let (app, _) = router_for_test("bad-json");
         let response = app
