@@ -3,6 +3,7 @@
 pub mod app;
 pub mod replay;
 pub mod session_list;
+pub mod timeline;
 pub mod widgets;
 
 pub const CRATE_NAME: &str = "claude-insight-tui";

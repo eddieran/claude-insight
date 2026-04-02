@@ -4,9 +4,9 @@ expression: "render_replay(sample_state(), 180, 50)"
 ---
 ┌ Replay session-  [Tab] focus  [1/2/3] jump  [Enter] evidence  [Esc] back ────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │┌ Timeline [1] ───────────────────────────────────────────────────────┐┌ Transcript [2] ─────────────────────────────────────────────┐┌ Evidence [3] ────────────────────────────┐│
-││   🔧 2026-04-03T01:07:00Z                                           ││ session session-                                            ││ event 3                                  ││
-││   ❓ 2026-04-03T01:07:05Z                                           ││ branch feature/replay-layout                                ││ 2026-04-03T01:07:10Z                     ││
-││ ▸ 🚫 2026-04-03T01:07:10Z                                           ││                                                             ││                                          ││
+││ 2026-04-03T01:07:00Z 🔧 Tool call                                   ││ session session-                                            ││ event 3                                  ││
+││ 2026-04-03T01:07:05Z 🛡️ Permission allowed                          ││ branch feature/replay-layout                                ││ 2026-04-03T01:07:10Z                     ││
+││ 2026-04-03T01:07:10Z 🚫 Permission denied                           ││                                                             ││                                          ││
 ││                                                                     ││ Transcript content lands in MOT-130.                        ││ Evidence details land in MOT-131.        ││
 ││                                                                     ││ This ticket wires layout, focus, and responsive behavior on ││ Press Tab or 1/2/3 to switch panes.      ││
 ││                                                                     ││                                                             ││ Press Esc to return to the session list. ││
@@ -48,7 +48,7 @@ expression: "render_replay(sample_state(), 180, 50)"
 ││                                                                     ││                                                             ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
+││ ███                                                                 ││                                                             ││                                          ││
 │└─────────────────────────────────────────────────────────────────────┘└─────────────────────────────────────────────────────────────┘└──────────────────────────────────────────┘│
 │                                                      session- • $0.42 • 384 tok • 1 tools • 🔴 errors • 2026-04-03T01:07:10Z                                                     │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

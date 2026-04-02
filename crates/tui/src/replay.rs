@@ -1,3 +1,8 @@
+use crate::session_list::{
+    SessionEvent, SessionListItem, BACKGROUND, BORDER, BORDER_ACTIVE, SURFACE, TEXT_DIM,
+    TEXT_PRIMARY,
+};
+use crate::timeline::{format_timestamp, next_tool_index, previous_tool_index, TimelinePane};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
@@ -5,12 +10,6 @@ use ratatui::{
     style::{Modifier, Style, Stylize},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-};
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
-
-use crate::session_list::{
-    SessionEvent, SessionEventKind, SessionListItem, BACKGROUND, BORDER, BORDER_ACTIVE, SURFACE,
-    TEXT_DIM, TEXT_PRIMARY,
 };
 
 #[cfg(test)]
@@ -68,6 +67,7 @@ pub struct ReplayViewState {
     pub session: SessionListItem,
     pub focus: ReplayPane,
     pub selected_event: usize,
+    pub timeline_scroll: usize,
     pub evidence_overlay_open: bool,
 }
 
@@ -75,6 +75,7 @@ impl ReplayViewState {
     pub fn from_session(session: SessionListItem) -> Self {
         Self {
             selected_event: session.event_count().saturating_sub(1),
+            timeline_scroll: 0,
             session,
             focus: ReplayPane::Timeline,
             evidence_overlay_open: false,
@@ -90,7 +91,12 @@ impl ReplayViewState {
             KeyCode::Tab => self.set_focus(self.focus.next()),
             KeyCode::Char('1') => self.set_focus(ReplayPane::Timeline),
             KeyCode::Char('2') => self.set_focus(ReplayPane::Transcript),
-            KeyCode::Char('3') | KeyCode::Enter => self.set_focus(ReplayPane::Evidence),
+            KeyCode::Char('3') => self.set_focus(ReplayPane::Evidence),
+            KeyCode::Enter => {
+                if self.focus == ReplayPane::Timeline {
+                    self.set_focus(ReplayPane::Evidence);
+                }
+            }
             KeyCode::Char('j') | KeyCode::Down => {
                 if self.focus == ReplayPane::Timeline {
                     self.move_selection(1);
@@ -99,6 +105,26 @@ impl ReplayViewState {
             KeyCode::Char('k') | KeyCode::Up => {
                 if self.focus == ReplayPane::Timeline {
                     self.move_selection(-1);
+                }
+            }
+            KeyCode::Char('g') => {
+                if self.focus == ReplayPane::Timeline {
+                    self.jump_first();
+                }
+            }
+            KeyCode::Char('G') => {
+                if self.focus == ReplayPane::Timeline {
+                    self.jump_last();
+                }
+            }
+            KeyCode::Char('n') => {
+                if self.focus == ReplayPane::Timeline {
+                    self.jump_to_next_tool();
+                }
+            }
+            KeyCode::Char('N') => {
+                if self.focus == ReplayPane::Timeline {
+                    self.jump_to_previous_tool();
                 }
             }
             _ => {}
@@ -123,13 +149,51 @@ impl ReplayViewState {
         let next = self.selected_event as isize + delta;
         self.selected_event = next.clamp(0, self.session.events.len() as isize - 1) as usize;
     }
+
+    fn jump_first(&mut self) {
+        self.selected_event = 0;
+    }
+
+    fn jump_last(&mut self) {
+        if !self.session.events.is_empty() {
+            self.selected_event = self.session.events.len() - 1;
+        }
+    }
+
+    fn jump_to_next_tool(&mut self) {
+        if let Some(index) = next_tool_index(&self.session.events, self.selected_event) {
+            self.selected_event = index;
+        }
+    }
+
+    fn jump_to_previous_tool(&mut self) {
+        if let Some(index) = previous_tool_index(&self.session.events, self.selected_event) {
+            self.selected_event = index;
+        }
+    }
+
+    fn sync_timeline_scroll(&mut self, visible_rows: usize) {
+        if self.session.events.is_empty() || visible_rows == 0 {
+            self.timeline_scroll = 0;
+            return;
+        }
+
+        if self.selected_event < self.timeline_scroll {
+            self.timeline_scroll = self.selected_event;
+        } else if self.selected_event >= self.timeline_scroll + visible_rows {
+            self.timeline_scroll = self.selected_event + 1 - visible_rows;
+        }
+
+        let max_scroll = self.session.events.len().saturating_sub(visible_rows);
+        self.timeline_scroll = self.timeline_scroll.min(max_scroll);
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ReplayView;
 
 impl ReplayView {
-    pub fn render(frame: &mut Frame<'_>, area: Rect, state: &ReplayViewState) {
+    pub fn render(frame: &mut Frame<'_>, area: Rect, state: &mut ReplayViewState) {
         let mode = ReplayLayoutMode::from_width(area.width);
         let collapse_footer = area.height < 24;
         let block = Block::default()
@@ -179,7 +243,7 @@ impl ReplayView {
         Line::from(title).bold()
     }
 
-    fn render_wide(frame: &mut Frame<'_>, area: Rect, state: &ReplayViewState) {
+    fn render_wide(frame: &mut Frame<'_>, area: Rect, state: &mut ReplayViewState) {
         let [timeline, transcript, evidence] = Layout::horizontal([
             Constraint::Percentage(40),
             Constraint::Percentage(35),
@@ -192,7 +256,7 @@ impl ReplayView {
         Self::render_evidence(frame, evidence, state);
     }
 
-    fn render_medium(frame: &mut Frame<'_>, area: Rect, state: &ReplayViewState) {
+    fn render_medium(frame: &mut Frame<'_>, area: Rect, state: &mut ReplayViewState) {
         let [timeline, transcript] =
             Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .areas(area);
@@ -211,7 +275,7 @@ impl ReplayView {
         }
     }
 
-    fn render_narrow(frame: &mut Frame<'_>, area: Rect, state: &ReplayViewState) {
+    fn render_narrow(frame: &mut Frame<'_>, area: Rect, state: &mut ReplayViewState) {
         match state.focus {
             ReplayPane::Timeline => Self::render_timeline(frame, area, state),
             ReplayPane::Transcript => Self::render_transcript(frame, area, state),
@@ -219,55 +283,15 @@ impl ReplayView {
         }
     }
 
-    fn render_timeline(frame: &mut Frame<'_>, area: Rect, state: &ReplayViewState) {
-        let block = pane_block(
-            ReplayPane::Timeline.title(),
+    fn render_timeline(frame: &mut Frame<'_>, area: Rect, state: &mut ReplayViewState) {
+        state.sync_timeline_scroll(TimelinePane::visible_event_rows(area));
+        TimelinePane::render(
+            frame,
+            area,
+            &state.session,
+            state.selected_event,
+            state.timeline_scroll,
             state.focus == ReplayPane::Timeline,
-        );
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
-
-        let lines = if state.session.events.is_empty() {
-            vec![Line::from(Span::styled(
-                "No events in this session yet.",
-                Style::new().fg(TEXT_DIM),
-            ))]
-        } else {
-            let max_lines = inner.height.max(1) as usize;
-            let selected = state.selected_event.min(state.session.events.len() - 1);
-            let start = selected.saturating_sub(max_lines.saturating_sub(1) / 2);
-            let end = (start + max_lines).min(state.session.events.len());
-
-            state.session.events[start..end]
-                .iter()
-                .enumerate()
-                .map(|(offset, event)| {
-                    let index = start + offset;
-                    let selected_row = index == selected;
-                    let marker = if selected_row { "▸" } else { " " };
-                    let style = if selected_row {
-                        Style::new().fg(BORDER_ACTIVE).add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::new().fg(TEXT_PRIMARY)
-                    };
-                    Line::from(Span::styled(
-                        format!(
-                            "{marker} {} {}",
-                            event_emoji(event.kind),
-                            format_timestamp(event.timestamp)
-                        ),
-                        style,
-                    ))
-                })
-                .collect()
-        };
-
-        frame.render_widget(
-            Paragraph::new(lines)
-                .style(Style::new().bg(SURFACE))
-                .block(Block::default())
-                .alignment(Alignment::Left),
-            inner.inner(Margin::new(1, 0)),
         );
     }
 
@@ -409,23 +433,6 @@ fn current_event_timestamp(state: &ReplayViewState) -> String {
     format_timestamp(timestamp)
 }
 
-fn format_timestamp(timestamp: OffsetDateTime) -> String {
-    match timestamp.format(&Rfc3339) {
-        Ok(value) => value,
-        Err(_) => timestamp.unix_timestamp().to_string(),
-    }
-}
-
-fn event_emoji(kind: SessionEventKind) -> &'static str {
-    match kind {
-        SessionEventKind::Other => "📋",
-        SessionEventKind::Tool => "🔧",
-        SessionEventKind::PermissionRequest => "❓",
-        SessionEventKind::PermissionDenied => "🚫",
-        SessionEventKind::PostToolUseFailure | SessionEventKind::StopFailure => "⚠️",
-    }
-}
-
 fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let vertical = Layout::default()
         .direction(Direction::Vertical)
@@ -455,7 +462,8 @@ fn render_replay(state: ReplayViewState, width: u16, height: u16) -> String {
         Err(error) => return format!("terminal error: {error}"),
     };
 
-    let draw_result = terminal.draw(|frame| ReplayView::render(frame, frame.area(), &state));
+    let mut state = state;
+    let draw_result = terminal.draw(|frame| ReplayView::render(frame, frame.area(), &mut state));
     if let Err(error) = draw_result {
         return format!("draw error: {error}");
     }
@@ -486,9 +494,11 @@ fn buffer_to_string(buffer: &Buffer) -> String {
 #[cfg(test)]
 mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
     use super::*;
-    use crate::session_list::Mood;
+    use crate::session_list::SessionEventKind;
+    use crate::widgets::mood_badge::Mood;
 
     #[test]
     fn replay_layout_180x50_snapshot() {
@@ -545,6 +555,88 @@ mod tests {
             state.session.event_count() * 128
         );
         assert_eq!(state.session.mood(), Mood::Errors);
+    }
+
+    #[test]
+    fn replay_timeline_navigation_supports_first_last_and_tool_jumps() {
+        let mut state = ReplayViewState::from_session(SessionListItem::new(
+            "session-2",
+            "feature/timeline-nav",
+            parse_timestamp("2026-04-03T01:09:00Z"),
+            0.11,
+            vec![
+                SessionEvent::new(
+                    SessionEventKind::SessionBoundary,
+                    parse_timestamp("2026-04-03T01:07:00Z"),
+                ),
+                SessionEvent::new(
+                    SessionEventKind::UserPromptSubmit,
+                    parse_timestamp("2026-04-03T01:07:05Z"),
+                ),
+                SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:10Z")),
+                SessionEvent::new(
+                    SessionEventKind::InstructionsLoaded,
+                    parse_timestamp("2026-04-03T01:07:15Z"),
+                ),
+                SessionEvent::tool("tool-2", parse_timestamp("2026-04-03T01:07:20Z")),
+            ],
+        ));
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
+        assert_eq!(state.selected_event, 0);
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE));
+        assert_eq!(state.selected_event, 2);
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE));
+        assert_eq!(state.selected_event, 4);
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('N'), KeyModifiers::SHIFT));
+        assert_eq!(state.selected_event, 2);
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::SHIFT));
+        assert_eq!(state.selected_event, 4);
+    }
+
+    #[test]
+    fn replay_timeline_scroll_keeps_selection_visible() {
+        let mut state = ReplayViewState::from_session(SessionListItem::new(
+            "session-3",
+            "feature/timeline-scroll",
+            parse_timestamp("2026-04-03T01:09:00Z"),
+            0.11,
+            vec![
+                SessionEvent::new(
+                    SessionEventKind::SessionBoundary,
+                    parse_timestamp("2026-04-03T01:07:00Z"),
+                ),
+                SessionEvent::new(
+                    SessionEventKind::UserPromptSubmit,
+                    parse_timestamp("2026-04-03T01:07:05Z"),
+                ),
+                SessionEvent::new(
+                    SessionEventKind::InstructionsLoaded,
+                    parse_timestamp("2026-04-03T01:07:10Z"),
+                ),
+                SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:15Z")),
+                SessionEvent::new(
+                    SessionEventKind::PermissionDenied,
+                    parse_timestamp("2026-04-03T01:07:20Z"),
+                ),
+            ],
+        ));
+
+        state.selected_event = 0;
+        state.sync_timeline_scroll(2);
+        assert_eq!(state.timeline_scroll, 0);
+
+        state.selected_event = 3;
+        state.sync_timeline_scroll(2);
+        assert_eq!(state.timeline_scroll, 2);
+
+        state.selected_event = 1;
+        state.sync_timeline_scroll(2);
+        assert_eq!(state.timeline_scroll, 1);
     }
 
     fn sample_state() -> ReplayViewState {

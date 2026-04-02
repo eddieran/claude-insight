@@ -99,6 +99,10 @@ pub enum SessionListOverlay {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionEventKind {
+    SessionBoundary,
+    UserPromptSubmit,
+    InstructionsLoaded,
+    Subagent,
     Other,
     Tool,
     PermissionRequest,
@@ -111,6 +115,12 @@ pub enum SessionEventKind {
 impl SessionEventKind {
     pub fn from_event_type(event_type: &str) -> Self {
         match event_type {
+            "SessionStart" | "SessionEnd" | "TaskCreated" | "TaskCompleted" => {
+                Self::SessionBoundary
+            }
+            "UserPromptSubmit" => Self::UserPromptSubmit,
+            "InstructionsLoaded" => Self::InstructionsLoaded,
+            "SubagentStart" | "SubagentStop" => Self::Subagent,
             "PreToolUse" | "PostToolUse" => Self::Tool,
             "PermissionRequest" => Self::PermissionRequest,
             "Retry" => Self::Retry,
@@ -120,6 +130,26 @@ impl SessionEventKind {
             _ => Self::Other,
         }
     }
+
+    pub fn default_label(self) -> &'static str {
+        match self {
+            Self::SessionBoundary => "Session boundary",
+            Self::UserPromptSubmit => "User prompt",
+            Self::InstructionsLoaded => "Instructions loaded",
+            Self::Subagent => "Subagent lifecycle",
+            Self::Other => "Event",
+            Self::Tool => "Tool call",
+            Self::PermissionRequest => "Permission allowed",
+            Self::Retry => "Retry",
+            Self::PermissionDenied => "Permission denied",
+            Self::PostToolUseFailure => "Tool failure",
+            Self::StopFailure => "Stop failure",
+        }
+    }
+
+    pub fn is_tool_call(self) -> bool {
+        matches!(self, Self::Tool)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -127,6 +157,7 @@ pub struct SessionEvent {
     pub kind: SessionEventKind,
     pub timestamp: OffsetDateTime,
     pub tool_use_id: Option<String>,
+    pub label: String,
 }
 
 impl SessionEvent {
@@ -135,6 +166,7 @@ impl SessionEvent {
             kind,
             timestamp,
             tool_use_id: None,
+            label: kind.default_label().to_string(),
         }
     }
 
@@ -143,7 +175,13 @@ impl SessionEvent {
             kind: SessionEventKind::Tool,
             timestamp,
             tool_use_id: Some(tool_use_id.into()),
+            label: SessionEventKind::Tool.default_label().to_string(),
         }
+    }
+
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
+        self
     }
 }
 
