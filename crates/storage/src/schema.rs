@@ -130,6 +130,20 @@ CREATE TRIGGER IF NOT EXISTS raw_events_ai AFTER INSERT ON raw_events BEGIN
     new.payload_json
   );
 END;
+
+CREATE TRIGGER IF NOT EXISTS raw_events_ad AFTER DELETE ON raw_events BEGIN
+  INSERT INTO events_fts(events_fts, rowid, session_id, event_type, tool_name, file_path, prompt_text, content)
+  VALUES (
+    'delete',
+    old.id,
+    old.session_id,
+    old.event_type,
+    json_extract(old.payload_json, '$.tool_name'),
+    json_extract(old.payload_json, '$.file_path'),
+    json_extract(old.payload_json, '$.prompt'),
+    old.payload_json
+  );
+END;
 "#;
 
 pub(crate) fn configure_connection(connection: &Connection, path: &Path) -> rusqlite::Result<()> {

@@ -126,10 +126,11 @@ mod tests {
             "normalization_state",
             "events_fts",
             "raw_events_ai",
+            "raw_events_ad",
         ];
 
         for name in names {
-            let object_type = if name == "raw_events_ai" {
+            let object_type = if matches!(name, "raw_events_ai" | "raw_events_ad") {
                 "trigger"
             } else {
                 "table"
@@ -151,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_raw_event_round_trips_by_session() -> rusqlite::Result<()> {
+    fn insert_raw_event_record_round_trips_full_crud_fields() -> rusqlite::Result<()> {
         let db = Database::new(":memory:")?;
         let payload_json = serde_json::json!({
             "tool_name": "Bash",
@@ -159,13 +160,18 @@ mod tests {
         })
         .to_string();
 
-        let event_id = db.insert_raw_event(
-            "session-1",
-            "hook",
-            "SessionStart",
-            "2026-04-03T15:00:00Z",
-            &payload_json,
-        )?;
+        let event_id = db.insert_raw_event_record(&NewRawEvent {
+            session_id: Some("session-1"),
+            source: "hook",
+            event_type: "PreToolUse",
+            ts: "2026-04-03T15:00:00Z",
+            tool_use_id: Some("toolu_123"),
+            prompt_id: Some("prompt_123"),
+            agent_id: Some("agent_123"),
+            payload_json: &payload_json,
+            claude_version: Some("2.0.0"),
+            adapter_version: Some("1.0.0"),
+        })?;
 
         assert!(event_id > 0);
 
@@ -175,8 +181,13 @@ mod tests {
         assert_eq!(events[0].id, event_id);
         assert_eq!(events[0].session_id.as_deref(), Some("session-1"));
         assert_eq!(events[0].source, "hook");
-        assert_eq!(events[0].event_type, "SessionStart");
+        assert_eq!(events[0].event_type, "PreToolUse");
+        assert_eq!(events[0].tool_use_id.as_deref(), Some("toolu_123"));
+        assert_eq!(events[0].prompt_id.as_deref(), Some("prompt_123"));
+        assert_eq!(events[0].agent_id.as_deref(), Some("agent_123"));
         assert_eq!(events[0].payload_json, payload_json);
+        assert_eq!(events[0].claude_version.as_deref(), Some("2.0.0"));
+        assert_eq!(events[0].adapter_version.as_deref(), Some("1.0.0"));
 
         Ok(())
     }
@@ -336,6 +347,46 @@ mod tests {
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         assert_eq!(indexed_row_ids, vec![event_id]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn retention_gc_deletes_old_events_and_cleans_fts_rows() -> rusqlite::Result<()> {
+        let db = Database::new(":memory:")?;
+
+        db.insert_raw_event(
+            "session-1",
+            "hook",
+            "UserPromptSubmit",
+            "2026-04-03T14:59:00Z",
+            &serde_json::json!({
+                "prompt": "old event that should be deleted",
+            })
+            .to_string(),
+        )?;
+        db.insert_raw_event(
+            "session-1",
+            "hook",
+            "UserPromptSubmit",
+            "2026-04-03T15:00:00Z",
+            &serde_json::json!({
+                "prompt": "new event that should stay searchable",
+            })
+            .to_string(),
+        )?;
+
+        let deleted = db.delete_raw_events_before("2026-04-03T15:00:00Z")?;
+        let remaining = db.query_raw_events(RawEventQuery::default())?;
+
+        assert_eq!(deleted, 1);
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].ts, "2026-04-03T15:00:00Z");
+        assert!(db.search_fts("deleted")?.is_empty());
+
+        let retained = db.search_fts("searchable")?;
+        assert_eq!(retained.len(), 1);
+        assert_eq!(retained[0].ts, "2026-04-03T15:00:00Z");
 
         Ok(())
     }
