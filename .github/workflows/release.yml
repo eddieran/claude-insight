@@ -77,11 +77,11 @@ jobs:
 
       - name: Build release binary with cross
         if: ${{ matrix.use_cross }}
-        run: cross build --locked --release --package claude-insight --bin ${{ env.BIN_NAME }} --target ${{ matrix.target }}
+        run: cross build --locked --release --package cli --bin ${{ env.BIN_NAME }} --target ${{ matrix.target }}
 
       - name: Build release binary with cargo
         if: ${{ !matrix.use_cross }}
-        run: cargo build --locked --release --package claude-insight --bin ${{ env.BIN_NAME }} --target ${{ matrix.target }}
+        run: cargo build --locked --release --package cli --bin ${{ env.BIN_NAME }} --target ${{ matrix.target }}
 
       - name: Stage build artifact
         shell: bash

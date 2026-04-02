@@ -3,14 +3,22 @@
 pub mod app;
 pub mod replay;
 pub mod session_list;
+pub mod widgets;
 
 pub const CRATE_NAME: &str = "claude-insight-tui";
 
 pub use app::{App, AppAction, AppView};
 pub use replay::{ReplayPane, ReplayView, ReplayViewState};
 pub use session_list::{
-    render_session_list, Mood, MoodFilter, SessionEvent, SessionEventKind, SessionListItem,
+    render_session_list, MoodFilter, SessionEvent, SessionEventKind, SessionListItem,
     SessionListOverlay, SessionListView, SortOrder,
+};
+pub use widgets::{
+    banner::{ansi_banner, banner_lines, banner_width, ASCII_BANNER},
+    mood_badge::{compute_mood, render_mood_badge, Mood},
+    progress_bar::ProgressBar,
+    sparkline::compute_sparkline_data,
+    spinner::BrailleSpinner,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
