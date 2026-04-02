@@ -126,7 +126,13 @@ impl SessionEventKind {
 pub struct SessionEvent {
     pub kind: SessionEventKind,
     pub timestamp: OffsetDateTime,
+    pub event_type: String,
     pub tool_use_id: Option<String>,
+    pub tool_name: Option<String>,
+    pub prompt_id: Option<String>,
+    pub content: Option<String>,
+    pub file_path: Option<String>,
+    pub raw_json: Option<String>,
 }
 
 impl SessionEvent {
@@ -134,7 +140,13 @@ impl SessionEvent {
         Self {
             kind,
             timestamp,
+            event_type: default_event_type(kind).to_owned(),
             tool_use_id: None,
+            tool_name: None,
+            prompt_id: None,
+            content: None,
+            file_path: None,
+            raw_json: None,
         }
     }
 
@@ -142,8 +154,100 @@ impl SessionEvent {
         Self {
             kind: SessionEventKind::Tool,
             timestamp,
+            event_type: "PreToolUse".to_owned(),
             tool_use_id: Some(tool_use_id.into()),
+            tool_name: None,
+            prompt_id: None,
+            content: None,
+            file_path: None,
+            raw_json: None,
         }
+    }
+
+    pub fn with_event_type(mut self, event_type: impl Into<String>) -> Self {
+        self.event_type = event_type.into();
+        self
+    }
+
+    pub fn with_tool_name(mut self, tool_name: impl Into<String>) -> Self {
+        self.tool_name = Some(tool_name.into());
+        self
+    }
+
+    pub fn with_prompt_id(mut self, prompt_id: impl Into<String>) -> Self {
+        self.prompt_id = Some(prompt_id.into());
+        self
+    }
+
+    pub fn with_content(mut self, content: impl Into<String>) -> Self {
+        self.content = Some(content.into());
+        self
+    }
+
+    pub fn with_file_path(mut self, file_path: impl Into<String>) -> Self {
+        self.file_path = Some(file_path.into());
+        self
+    }
+
+    pub fn with_raw_json(mut self, raw_json: impl Into<String>) -> Self {
+        self.raw_json = Some(raw_json.into());
+        self
+    }
+
+    pub fn is_prompt_boundary(&self) -> bool {
+        self.event_type == "UserPromptSubmit"
+    }
+
+    pub fn search_blob(&self) -> String {
+        [
+            Some(self.event_type.as_str()),
+            self.tool_name.as_deref(),
+            self.content.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" ")
+    }
+
+    pub fn raw_json_text(&self) -> String {
+        match &self.raw_json {
+            Some(raw_json) => raw_json.clone(),
+            None => {
+                let mut fields = vec![
+                    format!("\"event_type\":\"{}\"", self.event_type),
+                    format!("\"timestamp\":\"{}\"", format_timestamp(self.timestamp)),
+                ];
+                if let Some(tool_use_id) = &self.tool_use_id {
+                    fields.push(format!("\"tool_use_id\":\"{}\"", tool_use_id));
+                }
+                if let Some(tool_name) = &self.tool_name {
+                    fields.push(format!("\"tool_name\":\"{}\"", tool_name));
+                }
+                if let Some(prompt_id) = &self.prompt_id {
+                    fields.push(format!("\"prompt_id\":\"{}\"", prompt_id));
+                }
+                if let Some(content) = &self.content {
+                    fields.push(format!("\"content\":\"{}\"", content.replace('"', "\\\"")));
+                }
+                if let Some(file_path) = &self.file_path {
+                    fields.push(format!("\"file_path\":\"{}\"", file_path));
+                }
+                format!("{{{}}}", fields.join(","))
+            }
+        }
+    }
+}
+
+fn default_event_type(kind: SessionEventKind) -> &'static str {
+    match kind {
+        SessionEventKind::Other => "Other",
+        SessionEventKind::Tool => "PreToolUse",
+        SessionEventKind::PermissionRequest => "PermissionRequest",
+        SessionEventKind::Retry => "Retry",
+        SessionEventKind::PermissionDenied => "PermissionDenied",
+        SessionEventKind::PostToolUseFailure => "PostToolUseFailure",
+        SessionEventKind::StopFailure => "StopFailure",
     }
 }
 
@@ -716,6 +820,13 @@ fn parse_timestamp(input: &str) -> OffsetDateTime {
     match OffsetDateTime::parse(input, &Rfc3339) {
         Ok(value) => value,
         Err(error) => panic!("failed to parse timestamp {input}: {error}"),
+    }
+}
+
+fn format_timestamp(timestamp: OffsetDateTime) -> String {
+    match timestamp.format(&Rfc3339) {
+        Ok(value) => value,
+        Err(_) => timestamp.unix_timestamp().to_string(),
     }
 }
 

@@ -1,0 +1,44 @@
+---
+source: crates/tui/src/keyboard.rs
+expression: "render_help_overlay(120, 40)"
+---
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                        ┌ Keyboard Help ───────────────────────────────────────────────────────────────────────────────┐
+                        │                                                                                              │
+                        │ Global                                        Replay                                         │
+                        │ key           action                          key           action                           │
+                        │ q / Ctrl+C    Quit                            j / k         Move timeline selection          │
+                        │ ?             Toggle help overlay             Enter         Show selected event in evidence  │
+                        │ /             Open search overlay             c             Toggle causal chain highlight    │
+                        │ Tab           Cycle panes                     e             Expand transcript tool call      │
+                        │ 1 / 2 / 3     Jump to pane                    p             Jump to parent prompt            │
+                        │ Esc           Close overlay / back            n / N         Next / previous tool call        │
+                        │                                               [ / ]         Previous / next prompt boundary  │
+                        │ Session List                                  g / G         First / last event               │
+                        │ key           action                          /             Search within session            │
+                        │ j / Down      Next session                                                                   │
+                        │ k / Up        Previous session                Evidence                                       │
+                        │ Enter         Open replay                     key           action                           │
+                        │ s             Cycle sort                      j / k         Scroll evidence                  │
+                        │ f             Open filter overlay             y             Copy raw JSON                    │
+                        │                                               o             Open file path in editor         │
+                        │                                               l             Toggle linked events tree        │
+                        │                                                                                              │
+                        │                                                                                              │
+                        │                                                                                              │
+                        │                                                                                              │
+                        │                                                                                              │
+                        │                                                                                              │
+                        │                                                                                              │
+                        │                                                                                              │
+                        │                                                                                              │
+                        └──────────────────────────────────────────────────────────────────────────────────────────────┘

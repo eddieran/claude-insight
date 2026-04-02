@@ -2,15 +2,15 @@
 source: crates/tui/src/replay.rs
 expression: "render_replay(sample_state(), 180, 50)"
 ---
-┌ Replay session-  [Tab] focus  [1/2/3] jump  [Enter] evidence  [Esc] back ────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+┌ Replay session-  [Tab] focus  [1/2/3] jump  [?] help  [/] search  [Esc] back ────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │┌ Timeline [1] ───────────────────────────────────────────────────────┐┌ Transcript [2] ─────────────────────────────────────────────┐┌ Evidence [3] ────────────────────────────┐│
-││   🔧 2026-04-03T01:07:00Z                                           ││ session session-                                            ││ event 3                                  ││
-││   ❓ 2026-04-03T01:07:05Z                                           ││ branch feature/replay-layout                                ││ 2026-04-03T01:07:10Z                     ││
-││ ▸ 🚫 2026-04-03T01:07:10Z                                           ││                                                             ││                                          ││
-││                                                                     ││ Transcript content lands in MOT-130.                        ││ Evidence details land in MOT-131.        ││
-││                                                                     ││ This ticket wires layout, focus, and responsive behavior on ││ Press Tab or 1/2/3 to switch panes.      ││
-││                                                                     ││                                                             ││ Press Esc to return to the session list. ││
+││   📋 UserPromptSubmit  2026-04-03T01:07:00Z                         ││   UserPromptSubmit · Open src/lib.rs and inspect the main   ││ event 4                                  ││
+││   🔧 PreToolUse  2026-04-03T01:07:05Z                               ││   PreToolUse · Bash · cat src/lib.rs                        ││ 2026-04-03T01:07:15Z                     ││
+││   🚫 PermissionDenied  2026-04-03T01:07:10Z                         ││   PermissionDenied · Permission denied for unsafe command   ││ type UserPromptSubmit                    ││
+││ ▸ 📋 UserPromptSubmit  2026-04-03T01:07:15Z                         ││ ▸ UserPromptSubmit · Search for Retry handling.             ││                                          ││
+││                                                                     ││                                                             ││ Search for Retry handling.               ││
 ││                                                                     ││                                                             ││                                          ││
+││                                                                     ││                                                             ││ y copy JSON  o open file  l linked event ││
 ││                                                                     ││                                                             ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
@@ -50,5 +50,5 @@ expression: "render_replay(sample_state(), 180, 50)"
 ││                                                                     ││                                                             ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
 │└─────────────────────────────────────────────────────────────────────┘└─────────────────────────────────────────────────────────────┘└──────────────────────────────────────────┘│
-│                                                      session- • $0.42 • 384 tok • 1 tools • 🔴 errors • 2026-04-03T01:07:10Z                                                     │
+│                                                           session- • $0.42 • 512 tok • 1 tools • chain:off • 🔴 errors                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

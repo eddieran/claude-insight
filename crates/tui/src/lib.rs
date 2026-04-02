@@ -1,14 +1,18 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
 pub mod app;
+pub mod keyboard;
 pub mod replay;
+pub mod search_overlay;
 pub mod session_list;
 pub mod widgets;
 
 pub const CRATE_NAME: &str = "claude-insight-tui";
 
 pub use app::{App, AppAction, AppView};
+pub use keyboard::render_help_overlay_widget;
 pub use replay::{ReplayPane, ReplayView, ReplayViewState};
+pub use search_overlay::{SearchOverlayAction, SearchOverlayState};
 pub use session_list::{
     render_session_list, MoodFilter, SessionEvent, SessionEventKind, SessionListItem,
     SessionListOverlay, SessionListView, SortOrder,
