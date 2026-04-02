@@ -1,0 +1,10 @@
+{
+  "cwd": "/workspace/claude-insight",
+  "hook_event_name": "Notification",
+  "message": "Permission prompt waiting for user action",
+  "notification_type": "permission_prompt",
+  "permission_mode": "acceptEdits",
+  "session_id": "11111111-1111-4111-8111-111111111111",
+  "title": "Claude Code notification",
+  "transcript_path": "/workspace/.claude/projects/claude-insight/11111111-1111-4111-8111-111111111111.jsonl"
+}

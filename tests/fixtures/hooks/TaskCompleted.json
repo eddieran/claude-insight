@@ -1,0 +1,12 @@
+{
+  "cwd": "/workspace/claude-insight",
+  "hook_event_name": "TaskCompleted",
+  "permission_mode": "acceptEdits",
+  "session_id": "11111111-1111-4111-8111-111111111111",
+  "task_description": "Assemble one JSON payload per hook event type.",
+  "task_id": "task-mot-115-a",
+  "task_subject": "Capture hook event fixtures",
+  "team_name": "fixture-team",
+  "teammate_name": "implementer",
+  "transcript_path": "/workspace/.claude/projects/claude-insight/11111111-1111-4111-8111-111111111111.jsonl"
+}

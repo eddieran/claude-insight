@@ -1,0 +1,301 @@
+{
+  "hooks": {
+    "ConfigChange": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs ConfigChange \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs CwdChanged \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Elicitation": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs Elicitation \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "ElicitationResult": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs ElicitationResult \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "FileChanged": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs FileChanged \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs InstructionsLoaded \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs Notification \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs PermissionDenied \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs PermissionRequest \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs PostCompact \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs PostToolUse \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs PostToolUseFailure \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs PreCompact \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs PreToolUse \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs SessionEnd \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs SessionStart \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Setup": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs Setup \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs Stop \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs StopFailure \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs SubagentStart \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs SubagentStop \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs TaskCompleted \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs TaskCreated \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs TeammateIdle \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs UserPromptSubmit \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs WorktreeCreate \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/capture-hook.mjs WorktreeRemove \"$CLAUDE_PROJECT_DIR\"/.research/claude-hook-probe/out",
+            "timeout": 30,
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
+}

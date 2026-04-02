@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "fixture-demo": {
+      "args": [
+        "./tests/fixtures/settings/mock-mcp-server.js"
+      ],
+      "command": "node",
+      "env": {
+        "FIXTURE_MODE": "true"
+      }
+    }
+  }
+}
