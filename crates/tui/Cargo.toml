@@ -1,12 +1,21 @@
 [package]
-name = "claude-insight-tui"
+name = "tui"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
+
+[lib]
+name = "claude_insight_tui"
 
 [dependencies]
 claude-insight-types.workspace = true
 crossterm.workspace = true
 ratatui.workspace = true
+serde_json.workspace = true
 syntect.workspace = true
+time = { version = "0.3", features = ["parsing"] }
 tracing.workspace = true
+unicode-width = "0.2"
+
+[dev-dependencies]
+insta = "1"

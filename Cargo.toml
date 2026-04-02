@@ -32,5 +32,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 claude-insight-capture = { package = "capture", path = "crates/capture" }
 claude-insight-daemon = { package = "daemon", path = "crates/daemon" }
 claude-insight-storage = { package = "storage", path = "crates/storage" }
-claude-insight-tui = { path = "crates/tui" }
+claude-insight-tui = { path = "crates/tui", package = "tui" }
 claude-insight-types = { path = "crates/types", package = "types" }

@@ -85,6 +85,16 @@ impl Database {
             |row| row.get(0),
         )
     }
+
+    pub fn delete_raw_events_before(&self, cutoff_ts: &str) -> rusqlite::Result<usize> {
+        let deleted = self.conn.execute(
+            "DELETE FROM raw_events
+             WHERE ts < ?1",
+            [cutoff_ts],
+        )?;
+        self.rebuild_fts_index()?;
+        Ok(deleted)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

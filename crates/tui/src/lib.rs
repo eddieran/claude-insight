@@ -1,6 +1,15 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
+pub mod app;
+pub mod session_list;
+
 pub const CRATE_NAME: &str = "claude-insight-tui";
+
+pub use app::{App, AppAction, AppView, ReplayViewState};
+pub use session_list::{
+    render_session_list, Mood, MoodFilter, SessionEvent, SessionEventKind, SessionListItem,
+    SessionListOverlay, SessionListView, SortOrder,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TuiStub {

@@ -278,14 +278,14 @@ async fn daemon_start() -> CliResult {
 
     fs::create_dir_all(app_dir()?)?;
 
-    let mut child = ProcessCommand::new(std::env::current_exe()?)
+    let mut child = ProcessCommand::new(daemon_executable_path()?)
         .arg("serve")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()?;
 
-    for _ in 0..20 {
+    for _ in 0..300 {
         if let Some(status) = child.try_wait()? {
             return Err(format!("daemon exited early with status {status}").into());
         }
@@ -322,7 +322,7 @@ fn daemon_stop() -> CliResult {
 
     terminate_process(pid)?;
 
-    for _ in 0..20 {
+    for _ in 0..300 {
         if !is_process_running(pid)? {
             let _ = fs::remove_file(&pid_path);
             println!(
@@ -341,6 +341,30 @@ fn daemon_stop() -> CliResult {
 
 fn app_dir() -> CliResult<PathBuf> {
     Ok(claude_insight_storage::Database::default_dir()?)
+}
+
+fn daemon_executable_path() -> CliResult<PathBuf> {
+    let current = std::env::current_exe()?;
+    let executable_name = if cfg!(windows) {
+        "claude-insight.exe"
+    } else {
+        "claude-insight"
+    };
+
+    if current
+        .parent()
+        .and_then(Path::file_name)
+        .is_some_and(|name| name == "deps")
+    {
+        if let Some(root) = current.parent().and_then(Path::parent) {
+            let candidate = root.join(executable_name);
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+        }
+    }
+
+    Ok(current)
 }
 
 fn pid_file_path() -> CliResult<PathBuf> {
