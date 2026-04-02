@@ -99,6 +99,10 @@ pub enum SessionListOverlay {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionEventKind {
+    SessionBoundary,
+    UserPromptSubmit,
+    InstructionsLoaded,
+    Subagent,
     Other,
     Tool,
     PermissionRequest,
@@ -111,6 +115,12 @@ pub enum SessionEventKind {
 impl SessionEventKind {
     pub fn from_event_type(event_type: &str) -> Self {
         match event_type {
+            "SessionStart" | "SessionEnd" | "TaskCreated" | "TaskCompleted" => {
+                Self::SessionBoundary
+            }
+            "UserPromptSubmit" => Self::UserPromptSubmit,
+            "InstructionsLoaded" => Self::InstructionsLoaded,
+            "SubagentStart" | "SubagentStop" => Self::Subagent,
             "PreToolUse" | "PostToolUse" => Self::Tool,
             "PermissionRequest" => Self::PermissionRequest,
             "Retry" => Self::Retry,
@@ -120,19 +130,34 @@ impl SessionEventKind {
             _ => Self::Other,
         }
     }
+
+    pub fn default_label(self) -> &'static str {
+        match self {
+            Self::SessionBoundary => "Session boundary",
+            Self::UserPromptSubmit => "User prompt",
+            Self::InstructionsLoaded => "Instructions loaded",
+            Self::Subagent => "Subagent lifecycle",
+            Self::Other => "Event",
+            Self::Tool => "Tool call",
+            Self::PermissionRequest => "Permission allowed",
+            Self::Retry => "Retry",
+            Self::PermissionDenied => "Permission denied",
+            Self::PostToolUseFailure => "Tool failure",
+            Self::StopFailure => "Stop failure",
+        }
+    }
+
+    pub fn is_tool_call(self) -> bool {
+        matches!(self, Self::Tool)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionEvent {
     pub kind: SessionEventKind,
     pub timestamp: OffsetDateTime,
-    pub event_type: String,
     pub tool_use_id: Option<String>,
-    pub tool_name: Option<String>,
-    pub prompt_id: Option<String>,
-    pub content: Option<String>,
-    pub file_path: Option<String>,
-    pub raw_json: Option<String>,
+    pub label: String,
 }
 
 impl SessionEvent {
@@ -140,13 +165,8 @@ impl SessionEvent {
         Self {
             kind,
             timestamp,
-            event_type: default_event_type(kind).to_owned(),
             tool_use_id: None,
-            tool_name: None,
-            prompt_id: None,
-            content: None,
-            file_path: None,
-            raw_json: None,
+            label: kind.default_label().to_string(),
         }
     }
 
@@ -154,100 +174,14 @@ impl SessionEvent {
         Self {
             kind: SessionEventKind::Tool,
             timestamp,
-            event_type: "PreToolUse".to_owned(),
             tool_use_id: Some(tool_use_id.into()),
-            tool_name: None,
-            prompt_id: None,
-            content: None,
-            file_path: None,
-            raw_json: None,
+            label: SessionEventKind::Tool.default_label().to_string(),
         }
     }
 
-    pub fn with_event_type(mut self, event_type: impl Into<String>) -> Self {
-        self.event_type = event_type.into();
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
         self
-    }
-
-    pub fn with_tool_name(mut self, tool_name: impl Into<String>) -> Self {
-        self.tool_name = Some(tool_name.into());
-        self
-    }
-
-    pub fn with_prompt_id(mut self, prompt_id: impl Into<String>) -> Self {
-        self.prompt_id = Some(prompt_id.into());
-        self
-    }
-
-    pub fn with_content(mut self, content: impl Into<String>) -> Self {
-        self.content = Some(content.into());
-        self
-    }
-
-    pub fn with_file_path(mut self, file_path: impl Into<String>) -> Self {
-        self.file_path = Some(file_path.into());
-        self
-    }
-
-    pub fn with_raw_json(mut self, raw_json: impl Into<String>) -> Self {
-        self.raw_json = Some(raw_json.into());
-        self
-    }
-
-    pub fn is_prompt_boundary(&self) -> bool {
-        self.event_type == "UserPromptSubmit"
-    }
-
-    pub fn search_blob(&self) -> String {
-        [
-            Some(self.event_type.as_str()),
-            self.tool_name.as_deref(),
-            self.content.as_deref(),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" ")
-    }
-
-    pub fn raw_json_text(&self) -> String {
-        match &self.raw_json {
-            Some(raw_json) => raw_json.clone(),
-            None => {
-                let mut fields = vec![
-                    format!("\"event_type\":\"{}\"", self.event_type),
-                    format!("\"timestamp\":\"{}\"", format_timestamp(self.timestamp)),
-                ];
-                if let Some(tool_use_id) = &self.tool_use_id {
-                    fields.push(format!("\"tool_use_id\":\"{}\"", tool_use_id));
-                }
-                if let Some(tool_name) = &self.tool_name {
-                    fields.push(format!("\"tool_name\":\"{}\"", tool_name));
-                }
-                if let Some(prompt_id) = &self.prompt_id {
-                    fields.push(format!("\"prompt_id\":\"{}\"", prompt_id));
-                }
-                if let Some(content) = &self.content {
-                    fields.push(format!("\"content\":\"{}\"", content.replace('"', "\\\"")));
-                }
-                if let Some(file_path) = &self.file_path {
-                    fields.push(format!("\"file_path\":\"{}\"", file_path));
-                }
-                format!("{{{}}}", fields.join(","))
-            }
-        }
-    }
-}
-
-fn default_event_type(kind: SessionEventKind) -> &'static str {
-    match kind {
-        SessionEventKind::Other => "Other",
-        SessionEventKind::Tool => "PreToolUse",
-        SessionEventKind::PermissionRequest => "PermissionRequest",
-        SessionEventKind::Retry => "Retry",
-        SessionEventKind::PermissionDenied => "PermissionDenied",
-        SessionEventKind::PostToolUseFailure => "PostToolUseFailure",
-        SessionEventKind::StopFailure => "StopFailure",
     }
 }
 
@@ -331,6 +265,7 @@ pub struct SessionListView {
     overlay: SessionListOverlay,
     branch_filter_index: usize,
     mood_filter: MoodFilter,
+    empty_state_message: Option<String>,
 }
 
 impl SessionListView {
@@ -344,6 +279,7 @@ impl SessionListView {
             overlay: SessionListOverlay::None,
             branch_filter_index: 0,
             mood_filter: MoodFilter::All,
+            empty_state_message: None,
         };
         view.ensure_selection_in_bounds();
         view
@@ -379,6 +315,18 @@ impl SessionListView {
         self.overlay = SessionListOverlay::None;
     }
 
+    pub fn empty_state_message(&self) -> Option<&str> {
+        self.empty_state_message.as_deref()
+    }
+
+    pub fn set_empty_state_message(&mut self, message: impl Into<String>) {
+        self.empty_state_message = Some(message.into());
+    }
+
+    pub fn clear_empty_state_message(&mut self) {
+        self.empty_state_message = None;
+    }
+
     pub fn render(&self, frame: &mut Frame<'_>, area: Rect) {
         let block = Block::default()
             .title(Line::from(" CLAUDE INSIGHT ").bold())
@@ -400,7 +348,7 @@ impl SessionListView {
 
         frame.render_widget(render_title(self.sort_order), title);
         if self.sessions.is_empty() || self.visible_indices().is_empty() {
-            render_empty_state(frame, body);
+            render_empty_state(frame, body, self.empty_state_message.as_deref());
         } else {
             self.render_rows(frame, body);
         }
@@ -676,10 +624,12 @@ fn render_help_bar() -> Paragraph<'static> {
         .alignment(Alignment::Center)
 }
 
-fn render_empty_state(frame: &mut Frame<'_>, area: Rect) {
-    let paragraph = Paragraph::new("No sessions captured yet. Run `claude-insight init` to start.")
-        .style(Style::new().fg(TEXT_DIM))
-        .alignment(Alignment::Center);
+fn render_empty_state(frame: &mut Frame<'_>, area: Rect, message: Option<&str>) {
+    let paragraph = Paragraph::new(
+        message.unwrap_or("No sessions captured yet. Run `claude-insight init` to start."),
+    )
+    .style(Style::new().fg(TEXT_DIM))
+    .alignment(Alignment::Center);
     frame.render_widget(paragraph, area);
 }
 
@@ -820,13 +770,6 @@ fn parse_timestamp(input: &str) -> OffsetDateTime {
     match OffsetDateTime::parse(input, &Rfc3339) {
         Ok(value) => value,
         Err(error) => panic!("failed to parse timestamp {input}: {error}"),
-    }
-}
-
-fn format_timestamp(timestamp: OffsetDateTime) -> String {
-    match timestamp.format(&Rfc3339) {
-        Ok(value) => value,
-        Err(_) => timestamp.unix_timestamp().to_string(),
     }
 }
 

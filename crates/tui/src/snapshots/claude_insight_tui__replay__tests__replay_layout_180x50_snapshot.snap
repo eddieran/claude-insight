@@ -1,25 +1,26 @@
 ---
 source: crates/tui/src/replay.rs
+assertion_line: 493
 expression: "render_replay(sample_state(), 180, 50)"
 ---
-┌ Replay session-  [Tab] focus  [1/2/3] jump  [?] help  [/] search  [Esc] back ────────────────────────────────────────────────────────────────────────────────────────────────────┐
+┌ Replay session-  [Tab] focus  [1/2/3] jump  [Enter] evidence  [Esc] back ────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │┌ Timeline [1] ───────────────────────────────────────────────────────┐┌ Transcript [2] ─────────────────────────────────────────────┐┌ Evidence [3] ────────────────────────────┐│
-││   📋 UserPromptSubmit  2026-04-03T01:07:00Z                         ││   UserPromptSubmit · Open src/lib.rs and inspect the main   ││ event 4                                  ││
-││   🔧 PreToolUse  2026-04-03T01:07:05Z                               ││   PreToolUse · Bash · cat src/lib.rs                        ││ 2026-04-03T01:07:15Z                     ││
-││   🚫 PermissionDenied  2026-04-03T01:07:10Z                         ││   PermissionDenied · Permission denied for unsafe command   ││ type UserPromptSubmit                    ││
-││ ▸ 📋 UserPromptSubmit  2026-04-03T01:07:15Z                         ││ ▸ UserPromptSubmit · Search for Retry handling.             ││                                          ││
-││                                                                     ││                                                             ││ Search for Retry handling.               ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││ y copy JSON  o open file  l linked event ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
-││                                                                     ││                                                             ││                                          ││
+││   📋 2026-04-03T01:06:40Z                                           ││ USER: Build the transcript pane for this session replay.    ││ event 6                                  ││
+││   📋 2026-04-03T01:06:50Z                                           ││ CLAUDE: I am rendering a real conversation view with tool   ││ 2026-04-03T01:07:10Z                     ││
+││   🔧 2026-04-03T01:07:00Z                                           ││         cards and subagent sections.                        ││                                          ││
+││   ❓ 2026-04-03T01:07:05Z                                           ││ ┌─ Tool: exec_command ───────────────────────────────────── ││ Evidence details land in MOT-131.        ││
+││   🔧 2026-04-03T01:07:07Z                                           ││ │command: cargo test -p tui -- transcript                 │ ││ Press Tab or 1/2/3 to switch panes.      ││
+││ ▸ 🚫 2026-04-03T01:07:10Z                                           ││ │→ Compiling tui v0.1.0                                   │ ││ Press Esc to return to the session list. ││
+││                                                                     ││ │  error[E0004]: SessionEventKind::Retry not covered      │ ││                                          ││
+││                                                                     ││ │  help: add a match arm for Retry                        │ ││                                          ││
+││                                                                     ││ └─────────────────────────────────────────────────────────┘ ││                                          ││
+││                                                                     ││ ▏ 🤖 Agent: review [expanded]                               ││                                          ││
+││                                                                     ││ ▏ Use e to collapse or expand this subagent section.        ││                                          ││
+││                                                                     ││ ▏   CLAUDE: Subagent reviewed the transcript widget output  ││                                          ││
+││                                                                     ││ ▏           and confirmed the tool card shape.              ││                                          ││
+││                                                                     ││ CLAUDE: The permission-denied event stays visible in the    ││                                          ││
+││                                                                     ││         timeline while the transcript follows the selected  ││                                          ││
+││                                                                     ││         entry.                                              ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
@@ -50,5 +51,5 @@ expression: "render_replay(sample_state(), 180, 50)"
 ││                                                                     ││                                                             ││                                          ││
 ││                                                                     ││                                                             ││                                          ││
 │└─────────────────────────────────────────────────────────────────────┘└─────────────────────────────────────────────────────────────┘└──────────────────────────────────────────┘│
-│                                                           session- • $0.42 • 512 tok • 1 tools • chain:off • 🔴 errors                                                           │
+│                                                      session- • $0.42 • 768 tok • 2 tools • 🔴 errors • 2026-04-03T01:07:10Z                                                     │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

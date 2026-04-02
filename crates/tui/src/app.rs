@@ -1,11 +1,8 @@
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{layout::Rect, prelude::Frame};
 
-use crate::{
-    keyboard::render_help_overlay_widget,
-    replay::{ReplayAction, ReplayView, ReplayViewState},
-    session_list::{SessionListOverlay, SessionListView},
-};
+use crate::replay::{ReplayView, ReplayViewState};
+use crate::session_list::{SessionListOverlay, SessionListView};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppAction {
@@ -13,8 +10,6 @@ pub enum AppAction {
     Quit,
     OpenReplay { session_id: String },
     ReturnToSessionList,
-    CopyEvidenceJson(String),
-    OpenFileInEditor { path: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,7 +23,6 @@ pub struct App {
     session_list: SessionListView,
     view: AppView,
     should_quit: bool,
-    help_overlay_open: bool,
 }
 
 impl App {
@@ -37,7 +31,6 @@ impl App {
             session_list,
             view: AppView::SessionList,
             should_quit: false,
-            help_overlay_open: false,
         }
     }
 
@@ -53,34 +46,16 @@ impl App {
         self.should_quit
     }
 
-    pub fn help_overlay_open(&self) -> bool {
-        self.help_overlay_open
-    }
-
-    pub fn render(&self, frame: &mut Frame<'_>, area: Rect) {
-        match &self.view {
+    pub fn render(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        match &mut self.view {
             AppView::SessionList => self.session_list.render(frame, area),
             AppView::Replay(state) => ReplayView::render(frame, area, state),
-        }
-
-        if self.help_overlay_open {
-            render_help_overlay_widget(frame, area);
         }
     }
 
     pub fn handle_event(&mut self, event: Event) -> AppAction {
-        self.handle_event_in_area(event, Rect::default())
-    }
-
-    pub fn handle_event_in_area(&mut self, event: Event, area: Rect) -> AppAction {
         match event {
             Event::Key(key) => self.handle_key_event(key),
-            Event::Mouse(mouse) => match &mut self.view {
-                AppView::Replay(state) if !self.help_overlay_open => {
-                    map_replay_action(state.handle_mouse_event(mouse, area))
-                }
-                _ => AppAction::None,
-            },
             _ => AppAction::None,
         }
     }
@@ -89,18 +64,6 @@ impl App {
         if is_quit_key(key) {
             self.should_quit = true;
             return AppAction::Quit;
-        }
-
-        if matches!(key.code, KeyCode::Char('?')) {
-            self.help_overlay_open = !self.help_overlay_open;
-            return AppAction::None;
-        }
-
-        if self.help_overlay_open {
-            if matches!(key.code, KeyCode::Esc | KeyCode::Char('?')) {
-                self.help_overlay_open = false;
-            }
-            return AppAction::None;
         }
 
         match &mut self.view {
@@ -126,22 +89,15 @@ impl App {
                 AppAction::None
             }
             AppView::Replay(state) => {
-                if state.search_overlay.is_none() && matches!(key.code, KeyCode::Esc) {
+                if matches!(key.code, KeyCode::Esc) {
                     self.view = AppView::SessionList;
-                    return AppAction::ReturnToSessionList;
+                    AppAction::ReturnToSessionList
+                } else {
+                    state.handle_key_event(key);
+                    AppAction::None
                 }
-
-                map_replay_action(state.handle_key_event(key))
             }
         }
-    }
-}
-
-fn map_replay_action(action: ReplayAction) -> AppAction {
-    match action {
-        ReplayAction::None => AppAction::None,
-        ReplayAction::CopyEvidenceJson(text) => AppAction::CopyEvidenceJson(text),
-        ReplayAction::OpenFileInEditor { path } => AppAction::OpenFileInEditor { path },
     }
 }
 
@@ -202,34 +158,6 @@ mod tests {
         assert!(app.should_quit());
     }
 
-    #[test]
-    fn help_key_toggles_global_overlay() {
-        let mut app = App::new(SessionListView::new(
-            sample_sessions(),
-            parse_timestamp("2026-04-03T01:10:00Z"),
-        ));
-
-        app.handle_key_event(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
-        assert!(app.help_overlay_open());
-
-        app.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-        assert!(!app.help_overlay_open());
-    }
-
-    #[test]
-    fn escape_in_replay_returns_to_session_list_when_no_overlay_is_open() {
-        let mut app = App::new(SessionListView::new(
-            sample_sessions(),
-            parse_timestamp("2026-04-03T01:10:00Z"),
-        ));
-        app.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-
-        let action = app.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-
-        assert_eq!(action, AppAction::ReturnToSessionList);
-        assert_eq!(app.view(), &AppView::SessionList);
-    }
-
     fn sample_sessions() -> Vec<SessionListItem> {
         vec![SessionListItem::new(
             "session-1",
@@ -237,18 +165,8 @@ mod tests {
             parse_timestamp("2026-04-03T01:08:00Z"),
             0.42,
             vec![
-                SessionEvent::new(
-                    SessionEventKind::Other,
-                    parse_timestamp("2026-04-03T01:07:00Z"),
-                )
-                .with_event_type("UserPromptSubmit")
-                .with_prompt_id("prompt-1")
-                .with_content("Inspect src/lib.rs"),
-                SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:05Z"))
-                    .with_tool_name("Bash")
-                    .with_prompt_id("prompt-1")
-                    .with_content("cat src/lib.rs")
-                    .with_file_path("src/lib.rs"),
+                SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:00Z")),
+                SessionEvent::tool("tool-2", parse_timestamp("2026-04-03T01:07:05Z")),
                 SessionEvent::new(
                     SessionEventKind::Other,
                     parse_timestamp("2026-04-03T01:08:00Z"),

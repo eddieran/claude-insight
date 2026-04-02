@@ -406,11 +406,23 @@ fn init_prints_first_run_banner() -> Result<(), Box<dyn std::error::Error>> {
         .arg("init")
         .output()?;
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8(output.stdout)?;
     assert!(stdout.contains("Local observability for Claude Code"));
     assert!(stdout.contains("Initialized"));
+
+    let stop_output = env
+        .command()
+        .env("CLAUDE_INSIGHT_CAPTURE_PORT", capture_port.to_string())
+        .args(["daemon", "stop"])
+        .output()?;
+    assert!(stop_output.status.success());
 
     Ok(())
 }

@@ -1,18 +1,21 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
 pub mod app;
-pub mod keyboard;
+pub mod evidence;
 pub mod replay;
-pub mod search_overlay;
 pub mod session_list;
+pub mod transcript;
 pub mod widgets;
+pub mod wizard;
 
 pub const CRATE_NAME: &str = "claude-insight-tui";
 
 pub use app::{App, AppAction, AppView};
-pub use keyboard::render_help_overlay_widget;
+pub use evidence::{
+    EvidenceDetails, EvidencePaneState, InstructionProvenance, LinkedEvent, PermissionDecisionKind,
+    PermissionDetails,
+};
 pub use replay::{ReplayPane, ReplayView, ReplayViewState};
-pub use search_overlay::{SearchOverlayAction, SearchOverlayState};
 pub use session_list::{
     render_session_list, MoodFilter, SessionEvent, SessionEventKind, SessionListItem,
     SessionListOverlay, SessionListView, SortOrder,
@@ -23,6 +26,9 @@ pub use widgets::{
     progress_bar::ProgressBar,
     sparkline::compute_sparkline_data,
     spinner::BrailleSpinner,
+};
+pub use wizard::{
+    render_wizard_step1, HookInstallTarget, WizardCommand, WizardStep, WizardViewState,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

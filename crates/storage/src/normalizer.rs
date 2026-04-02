@@ -45,13 +45,13 @@ pub(crate) fn rebuild(database: &Database) -> rusqlite::Result<NormalizationStat
     let tx = database.conn.unchecked_transaction()?;
     tx.execute_batch(
         "
+        DELETE FROM event_links;
+        DELETE FROM config_snapshots;
+        DELETE FROM instruction_loads;
         DELETE FROM permission_decisions;
         DELETE FROM tool_invocations;
         DELETE FROM prompts;
-        DELETE FROM instruction_loads;
-        DELETE FROM config_snapshots;
         DELETE FROM sessions;
-        DELETE FROM event_links;
         UPDATE normalization_state
         SET last_raw_event_id = 0
         WHERE id = 1;
