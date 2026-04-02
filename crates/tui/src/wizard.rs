@@ -419,7 +419,7 @@ mod tests {
         wizard.handle_key_event(KeyEvent::from(KeyCode::Char('g')));
 
         let existing =
-            WizardViewState::discover_existing_sessions_in(&root.join(TRANSCRIPT_ROOT_DIR))
+            WizardViewState::discover_existing_sessions_in(root.join(TRANSCRIPT_ROOT_DIR))
                 .unwrap_or_default();
         wizard.confirm_daemon_started(4180, existing.len());
 
