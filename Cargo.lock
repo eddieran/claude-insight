@@ -267,8 +267,8 @@ dependencies = [
  "clap",
  "claude-insight-capture",
  "claude-insight-daemon",
- "claude-insight-storage",
  "claude-insight-tui",
+ "storage",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -280,19 +280,8 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "claude-insight-capture",
- "claude-insight-storage",
+ "storage",
  "tokio",
- "tracing",
-]
-
-[[package]]
-name = "claude-insight-storage"
-version = "0.1.0"
-dependencies = [
- "claude-insight-types",
- "rusqlite",
- "serde",
- "serde_json",
  "tracing",
 ]
 
@@ -1317,6 +1306,17 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "storage"
+version = "0.1.0"
+dependencies = [
+ "claude-insight-types",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "strsim"
