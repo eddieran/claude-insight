@@ -15,30 +15,60 @@ pub struct NormalizationStats {
 
 pub(crate) fn normalize(database: &Database) -> rusqlite::Result<NormalizationStats> {
     let tx = database.conn.unchecked_transaction()?;
-    let last_watermark = read_watermark(&tx)?;
-    let events = load_events_after(&tx, last_watermark)?;
+    let stats = normalize_from_watermark(&tx, read_watermark(&tx)?)?;
+    tx.commit()?;
+    Ok(stats)
+}
+
+pub(crate) fn rebuild(database: &Database) -> rusqlite::Result<NormalizationStats> {
+    let tx = database.conn.unchecked_transaction()?;
+    clear_materialized_tables(&tx)?;
+    let stats = normalize_from_watermark(&tx, 0)?;
+    tx.commit()?;
+    Ok(stats)
+}
+
+fn normalize_from_watermark(
+    tx: &Transaction<'_>,
+    last_watermark: i64,
+) -> rusqlite::Result<NormalizationStats> {
+    let events = load_events_after(tx, last_watermark)?;
     let mut last_processed_id = last_watermark;
 
     for event in &events {
-        normalize_event(&tx, event)?;
+        normalize_event(tx, event)?;
         last_processed_id = event.id;
     }
 
-    if last_processed_id != last_watermark {
-        tx.execute(
-            "UPDATE normalization_state
-             SET last_raw_event_id = ?1
-             WHERE id = 1",
-            params![last_processed_id],
-        )?;
-    }
-
-    tx.commit()?;
+    tx.execute(
+        "UPDATE normalization_state
+         SET last_raw_event_id = ?1
+         WHERE id = 1",
+        params![last_processed_id],
+    )?;
 
     Ok(NormalizationStats {
         processed_events: events.len(),
         last_raw_event_id: last_processed_id,
     })
+}
+
+fn clear_materialized_tables(tx: &Transaction<'_>) -> rusqlite::Result<()> {
+    tx.execute("DELETE FROM permission_decisions", [])?;
+    tx.execute("DELETE FROM instruction_loads", [])?;
+    tx.execute("DELETE FROM config_snapshots", [])?;
+    tx.execute("DELETE FROM tool_invocations", [])?;
+    tx.execute("DELETE FROM prompts", [])?;
+    tx.execute("DELETE FROM sessions", [])?;
+    tx.execute("DELETE FROM event_links", [])?;
+    tx.execute(
+        "UPDATE normalization_state
+         SET last_raw_event_id = 0
+         WHERE id = 1",
+        [],
+    )?;
+
+    Ok(())
 }
 
 fn read_watermark(tx: &Transaction<'_>) -> rusqlite::Result<i64> {
@@ -1194,6 +1224,70 @@ mod tests {
         assert_eq!(stats.last_raw_event_id, raw_id);
         assert_eq!(db.normalization_watermark()?, raw_id);
         assert_eq!(session_count, 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_rematerializes_tables_from_raw_events() -> rusqlite::Result<()> {
+        let db = Database::new(":memory:")?;
+        let fixtures = [
+            fixture_root().join("hooks/SessionStart.json"),
+            fixture_root().join("hooks/UserPromptSubmit.json"),
+            fixture_root().join("hooks/PreToolUse.json"),
+            fixture_root().join("hooks/PostToolUse.json"),
+            fixture_root().join("hooks/PermissionRequest.json"),
+            fixture_root().join("hooks/PermissionDenied.json"),
+            fixture_root().join("hooks/InstructionsLoaded.json"),
+            fixture_root().join("hooks/SessionEnd.json"),
+        ];
+
+        for (index, path) in fixtures.iter().enumerate() {
+            let payload = fs::read_to_string(path)
+                .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
+            insert_fixture_event(&db, "hook", &payload, index + 1)?;
+        }
+
+        let initial = db.normalize()?;
+        assert_eq!(initial.processed_events, fixtures.len());
+
+        db.conn.execute("DELETE FROM permission_decisions", [])?;
+        db.conn.execute("DELETE FROM tool_invocations", [])?;
+        db.conn.execute("DELETE FROM prompts", [])?;
+        db.conn.execute("DELETE FROM instruction_loads", [])?;
+        db.conn.execute(
+            "UPDATE normalization_state
+             SET last_raw_event_id = 999",
+            [],
+        )?;
+
+        let rebuilt = db.rebuild()?;
+        let prompt_count: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM prompts", [], |row| row.get(0))?;
+        let tool_count: i64 =
+            db.conn
+                .query_row("SELECT COUNT(*) FROM tool_invocations", [], |row| {
+                    row.get(0)
+                })?;
+        let permission_count: i64 =
+            db.conn
+                .query_row("SELECT COUNT(*) FROM permission_decisions", [], |row| {
+                    row.get(0)
+                })?;
+        let instruction_count: i64 =
+            db.conn
+                .query_row("SELECT COUNT(*) FROM instruction_loads", [], |row| {
+                    row.get(0)
+                })?;
+
+        assert_eq!(rebuilt.processed_events, fixtures.len());
+        assert_eq!(rebuilt.last_raw_event_id, fixtures.len() as i64);
+        assert_eq!(db.normalization_watermark()?, fixtures.len() as i64);
+        assert_eq!(prompt_count, 1);
+        assert_eq!(tool_count, 2);
+        assert_eq!(permission_count, 2);
+        assert_eq!(instruction_count, 1);
 
         Ok(())
     }
