@@ -247,17 +247,20 @@ fn handle_gc(days: u32) -> CliResult {
 
 fn handle_normalize(rebuild: bool) -> CliResult {
     let database = claude_insight_storage::Database::open_default()?;
-    let report = database.normalize(rebuild)?;
+    let report = if rebuild {
+        database.rebuild_normalized()?
+    } else {
+        database.normalize()?
+    };
 
     println!(
-        "{} {} raw events across {} sessions (last raw event id: {}).",
+        "{} {} raw events (last raw event id: {}).",
         if rebuild {
             "Rebuilt".green().bold()
         } else {
             "Normalized".green().bold()
         },
-        report.events_processed.to_string().cyan(),
-        report.sessions_touched.to_string().cyan(),
+        report.processed_events.to_string().cyan(),
         report.last_raw_event_id.to_string().cyan()
     );
 
