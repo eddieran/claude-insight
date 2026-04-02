@@ -1,6 +1,7 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
 pub mod app;
+pub mod evidence;
 pub mod replay;
 pub mod session_list;
 pub mod widgets;
@@ -8,6 +9,10 @@ pub mod widgets;
 pub const CRATE_NAME: &str = "claude-insight-tui";
 
 pub use app::{App, AppAction, AppView};
+pub use evidence::{
+    EvidenceDetails, EvidencePaneState, InstructionProvenance, LinkedEvent, PermissionDecisionKind,
+    PermissionDetails,
+};
 pub use replay::{ReplayPane, ReplayView, ReplayViewState};
 pub use session_list::{
     render_session_list, MoodFilter, SessionEvent, SessionEventKind, SessionListItem,

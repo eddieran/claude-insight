@@ -8,6 +8,7 @@ version.workspace = true
 name = "claude_insight_tui"
 
 [dependencies]
+arboard.workspace = true
 claude-insight-types.workspace = true
 crossterm.workspace = true
 ratatui.workspace = true

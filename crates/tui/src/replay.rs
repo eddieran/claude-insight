@@ -8,9 +8,11 @@ use ratatui::{
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-use crate::session_list::{
-    SessionEvent, SessionEventKind, SessionListItem, BACKGROUND, BORDER, BORDER_ACTIVE, SURFACE,
-    TEXT_DIM, TEXT_PRIMARY,
+use crate::{
+    evidence::{self, EvidencePaneState},
+    session_list::{
+        SessionListItem, BACKGROUND, BORDER, BORDER_ACTIVE, SURFACE, TEXT_DIM, TEXT_PRIMARY,
+    },
 };
 
 #[cfg(test)]
@@ -67,17 +69,21 @@ impl ReplayLayoutMode {
 pub struct ReplayViewState {
     pub session: SessionListItem,
     pub focus: ReplayPane,
-    pub selected_event: usize,
+    pub timeline_index: usize,
+    pub selected_event: Option<usize>,
     pub evidence_overlay_open: bool,
+    pub evidence_pane: EvidencePaneState,
 }
 
 impl ReplayViewState {
     pub fn from_session(session: SessionListItem) -> Self {
         Self {
-            selected_event: session.event_count().saturating_sub(1),
+            timeline_index: session.event_count().saturating_sub(1),
+            selected_event: None,
             session,
             focus: ReplayPane::Timeline,
             evidence_overlay_open: false,
+            evidence_pane: EvidencePaneState::default(),
         }
     }
 
@@ -90,23 +96,49 @@ impl ReplayViewState {
             KeyCode::Tab => self.set_focus(self.focus.next()),
             KeyCode::Char('1') => self.set_focus(ReplayPane::Timeline),
             KeyCode::Char('2') => self.set_focus(ReplayPane::Transcript),
-            KeyCode::Char('3') | KeyCode::Enter => self.set_focus(ReplayPane::Evidence),
-            KeyCode::Char('j') | KeyCode::Down => {
-                if self.focus == ReplayPane::Timeline {
-                    self.move_selection(1);
+            KeyCode::Char('3') => self.set_focus(ReplayPane::Evidence),
+            KeyCode::Enter => {
+                self.select_timeline_event();
+                self.set_focus(ReplayPane::Evidence);
+            }
+            KeyCode::Char('j') | KeyCode::Down => match self.focus {
+                ReplayPane::Timeline => self.move_timeline(1),
+                ReplayPane::Evidence => self.evidence_pane.scroll_down(),
+                ReplayPane::Transcript => {}
+            },
+            KeyCode::Char('k') | KeyCode::Up => match self.focus {
+                ReplayPane::Timeline => self.move_timeline(-1),
+                ReplayPane::Evidence => self.evidence_pane.scroll_up(),
+                ReplayPane::Transcript => {}
+            },
+            KeyCode::Char('l') if self.focus == ReplayPane::Evidence => {
+                self.evidence_pane.toggle_linked_events();
+            }
+            KeyCode::Char('y') if self.focus == ReplayPane::Evidence => {
+                if let Some(event) = self.current_event() {
+                    if let Err(error) = evidence::copy_event_json(event) {
+                        tracing::warn!(?error, "failed to copy evidence JSON");
+                    }
                 }
             }
-            KeyCode::Char('k') | KeyCode::Up => {
-                if self.focus == ReplayPane::Timeline {
-                    self.move_selection(-1);
+            KeyCode::Char('o') if self.focus == ReplayPane::Evidence => {
+                if let Some(event) = self.current_event() {
+                    if let Err(error) = evidence::open_event_file_path(event) {
+                        tracing::warn!(?error, "failed to open evidence file path");
+                    }
                 }
             }
             _ => {}
         }
     }
 
-    pub fn current_event(&self) -> Option<&SessionEvent> {
-        self.session.events.get(self.selected_event)
+    pub fn current_event(&self) -> Option<&crate::session_list::SessionEvent> {
+        self.selected_event
+            .and_then(|index| self.session.events.get(index))
+    }
+
+    fn timeline_event(&self) -> Option<&crate::session_list::SessionEvent> {
+        self.session.events.get(self.timeline_index)
     }
 
     fn set_focus(&mut self, focus: ReplayPane) {
@@ -114,14 +146,24 @@ impl ReplayViewState {
         self.evidence_overlay_open = focus == ReplayPane::Evidence;
     }
 
-    fn move_selection(&mut self, delta: isize) {
+    fn select_timeline_event(&mut self) {
         if self.session.events.is_empty() {
-            self.selected_event = 0;
+            self.selected_event = None;
             return;
         }
 
-        let next = self.selected_event as isize + delta;
-        self.selected_event = next.clamp(0, self.session.events.len() as isize - 1) as usize;
+        self.selected_event = Some(self.timeline_index.min(self.session.events.len() - 1));
+        self.evidence_pane.reset_scroll();
+    }
+
+    fn move_timeline(&mut self, delta: isize) {
+        if self.session.events.is_empty() {
+            self.timeline_index = 0;
+            return;
+        }
+
+        let next = self.timeline_index as isize + delta;
+        self.timeline_index = next.clamp(0, self.session.events.len() as isize - 1) as usize;
     }
 }
 
@@ -234,8 +276,8 @@ impl ReplayView {
             ))]
         } else {
             let max_lines = inner.height.max(1) as usize;
-            let selected = state.selected_event.min(state.session.events.len() - 1);
-            let start = selected.saturating_sub(max_lines.saturating_sub(1) / 2);
+            let cursor = state.timeline_index.min(state.session.events.len() - 1);
+            let start = cursor.saturating_sub(max_lines.saturating_sub(1) / 2);
             let end = (start + max_lines).min(state.session.events.len());
 
             state.session.events[start..end]
@@ -243,18 +285,24 @@ impl ReplayView {
                 .enumerate()
                 .map(|(offset, event)| {
                     let index = start + offset;
-                    let selected_row = index == selected;
-                    let marker = if selected_row { "▸" } else { " " };
-                    let style = if selected_row {
+                    let cursor_row = index == cursor;
+                    let selected_row = state.selected_event == Some(index);
+                    let marker = if cursor_row { "▸" } else { " " };
+                    let style = if cursor_row {
                         Style::new().fg(BORDER_ACTIVE).add_modifier(Modifier::BOLD)
+                    } else if selected_row {
+                        Style::new().fg(TEXT_PRIMARY).add_modifier(Modifier::BOLD)
                     } else {
                         Style::new().fg(TEXT_PRIMARY)
                     };
+
+                    let selection_suffix = if selected_row { "  [selected]" } else { "" };
                     Line::from(Span::styled(
                         format!(
-                            "{marker} {} {}",
-                            event_emoji(event.kind),
-                            format_timestamp(event.timestamp)
+                            "{marker} {} {}{}",
+                            event.kind_icon(),
+                            format_timestamp(event.timestamp),
+                            selection_suffix
                         ),
                         style,
                     ))
@@ -315,35 +363,11 @@ impl ReplayView {
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
-        let lines = vec![
-            Line::from(Span::styled(
-                format!("event {}", state.selected_event.saturating_add(1)),
-                Style::new().fg(TEXT_PRIMARY).add_modifier(Modifier::BOLD),
-            )),
-            Line::from(Span::styled(
-                current_event_timestamp(state),
-                Style::new().fg(TEXT_DIM),
-            )),
-            Line::from(""),
-            Line::from(Span::styled(
-                "Evidence details land in MOT-131.",
-                Style::new().fg(TEXT_PRIMARY),
-            )),
-            Line::from(Span::styled(
-                "Press Tab or 1/2/3 to switch panes.",
-                Style::new().fg(TEXT_DIM),
-            )),
-            Line::from(Span::styled(
-                "Press Esc to return to the session list.",
-                Style::new().fg(TEXT_DIM),
-            )),
-        ];
-
-        frame.render_widget(
-            Paragraph::new(lines)
-                .style(Style::new().bg(SURFACE))
-                .alignment(Alignment::Left),
+        evidence::render(
+            frame,
             inner.inner(Margin::new(1, 0)),
+            state.current_event(),
+            &state.evidence_pane,
         );
     }
 
@@ -404,6 +428,7 @@ fn estimated_token_count(session: &SessionListItem) -> usize {
 fn current_event_timestamp(state: &ReplayViewState) -> String {
     let timestamp = state
         .current_event()
+        .or_else(|| state.timeline_event())
         .map(|event| event.timestamp)
         .unwrap_or(state.session.last_updated);
     format_timestamp(timestamp)
@@ -413,16 +438,6 @@ fn format_timestamp(timestamp: OffsetDateTime) -> String {
     match timestamp.format(&Rfc3339) {
         Ok(value) => value,
         Err(_) => timestamp.unix_timestamp().to_string(),
-    }
-}
-
-fn event_emoji(kind: SessionEventKind) -> &'static str {
-    match kind {
-        SessionEventKind::Other => "📋",
-        SessionEventKind::Tool => "🔧",
-        SessionEventKind::PermissionRequest => "❓",
-        SessionEventKind::PermissionDenied => "🚫",
-        SessionEventKind::PostToolUseFailure | SessionEventKind::StopFailure => "⚠️",
     }
 }
 
@@ -488,21 +503,25 @@ mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     use super::*;
-    use crate::session_list::Mood;
+    use crate::{
+        evidence::{InstructionProvenance, LinkedEvent, PermissionDecisionKind, PermissionDetails},
+        session_list::{SessionEvent, SessionEventKind},
+        widgets::mood_badge::Mood,
+    };
 
     #[test]
     fn replay_layout_180x50_snapshot() {
-        insta::assert_snapshot!(render_replay(sample_state(), 180, 50));
+        insta::assert_snapshot!(render_replay(sample_selected_state(), 180, 50));
     }
 
     #[test]
     fn replay_layout_120x40_snapshot() {
-        insta::assert_snapshot!(render_replay(sample_state(), 120, 40));
+        insta::assert_snapshot!(render_replay(sample_selected_state(), 120, 40));
     }
 
     #[test]
     fn replay_layout_60x30_snapshot() {
-        insta::assert_snapshot!(render_replay(sample_state(), 60, 30));
+        insta::assert_snapshot!(render_replay(sample_selected_state(), 60, 30));
     }
 
     #[test]
@@ -533,6 +552,7 @@ mod tests {
 
         assert_eq!(state.focus, ReplayPane::Evidence);
         assert!(state.evidence_overlay_open);
+        assert_eq!(state.selected_event, Some(state.timeline_index));
     }
 
     #[test]
@@ -547,6 +567,29 @@ mod tests {
         assert_eq!(state.session.mood(), Mood::Errors);
     }
 
+    #[test]
+    fn replay_evidence_scroll_and_link_toggle_keys_work() {
+        let mut state = sample_selected_state();
+        assert_eq!(state.evidence_pane.scroll, 0);
+        assert!(state.evidence_pane.show_linked_events);
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE));
+
+        assert_eq!(state.evidence_pane.scroll, 1);
+        assert!(!state.evidence_pane.show_linked_events);
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE));
+        assert_eq!(state.evidence_pane.scroll, 0);
+    }
+
+    #[test]
+    fn replay_evidence_starts_empty_until_event_selected() {
+        let state = sample_state();
+
+        assert!(state.current_event().is_none());
+    }
+
     fn sample_state() -> ReplayViewState {
         ReplayViewState::from_session(SessionListItem::new(
             "session-1",
@@ -554,17 +597,70 @@ mod tests {
             parse_timestamp("2026-04-03T01:08:00Z"),
             0.42,
             vec![
-                SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:00Z")),
-                SessionEvent::new(
+                SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:00Z"))
+                    .with_raw_json(
+                        serde_json::json!({
+                            "hook_event_name": "PreToolUse",
+                            "tool_use_id": "tool-1",
+                            "tool_name": "Read",
+                            "tool_input": { "file_path": "docs/ENGINEERING.md" }
+                        })
+                        .to_string(),
+                    ),
+                SessionEvent::named(
                     SessionEventKind::PermissionRequest,
+                    "PermissionRequest",
                     parse_timestamp("2026-04-03T01:07:05Z"),
-                ),
-                SessionEvent::new(
+                )
+                .with_raw_json(
+                    serde_json::json!({
+                        "hook_event_name": "PermissionRequest",
+                        "permission_mode": "acceptEdits",
+                        "permission_suggestions": [
+                            { "label": "allow", "rule": "Read docs/*" }
+                        ]
+                    })
+                    .to_string(),
+                )
+                .with_permission(PermissionDetails {
+                    decision: PermissionDecisionKind::Allow,
+                    source: Some("rule".to_string()),
+                    rule_text: Some("Read docs/*".to_string()),
+                    permission_mode: Some("acceptEdits".to_string()),
+                }),
+                SessionEvent::named(
                     SessionEventKind::PermissionDenied,
+                    "InstructionsLoaded",
                     parse_timestamp("2026-04-03T01:07:10Z"),
-                ),
+                )
+                .with_raw_json(
+                    serde_json::json!({
+                        "hook_event_name": "InstructionsLoaded",
+                        "file_path": "/workspace/claude-insight/CLAUDE.md",
+                        "memory_type": "project",
+                        "load_reason": "session-start"
+                    })
+                    .to_string(),
+                )
+                .with_instruction_provenance(InstructionProvenance {
+                    file_path: "/workspace/claude-insight/CLAUDE.md".to_string(),
+                    memory_type: Some("project".to_string()),
+                    load_reason: Some("session-start".to_string()),
+                })
+                .with_linked_events(vec![
+                    LinkedEvent::new("PreToolUse", parse_timestamp("2026-04-03T01:07:00Z")),
+                    LinkedEvent::new("PostToolUse", parse_timestamp("2026-04-03T01:07:12Z")),
+                ]),
             ],
         ))
+    }
+
+    fn sample_selected_state() -> ReplayViewState {
+        let mut state = sample_state();
+        state.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE));
+        state.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        state
     }
 
     fn parse_timestamp(input: &str) -> OffsetDateTime {

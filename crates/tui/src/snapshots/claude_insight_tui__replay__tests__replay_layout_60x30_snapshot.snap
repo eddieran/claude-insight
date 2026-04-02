@@ -1,28 +1,29 @@
 ---
 source: crates/tui/src/replay.rs
-expression: "render_replay(sample_state(), 60, 30)"
+assertion_line: 524
+expression: "render_replay(sample_selected_state(), 60, 30)"
 ---
 ┌ Replay session-  [Tab] focus  [1/2/3] jump  [Enter] evide┐
-│┌ Timeline [1] ──────────────────────────────────────────┐│
-││   🔧 2026-04-03T01:07:00Z                              ││
-││   ❓ 2026-04-03T01:07:05Z                              ││
-││ ▸ 🚫 2026-04-03T01:07:10Z                              ││
+│┌ Evidence [3] ──────────────────────────────────────────┐│
+││ InstructionsLoaded                                     ││
+││ 🚫  01:07:10                                           ││
 ││                                                        ││
+││ Instruction Provenance                                 ││
+││ File: /workspace/claude-insight/CLAUDE.md              ││
+││ Memory: project                                        ││
+││ Reason: session-start                                  ││
 ││                                                        ││
+││ Linked Events                                          ││
+││ ├── PreToolUse (01:07:00)                              ││
+││ └── PostToolUse (01:07:12)                             ││
 ││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
-││                                                        ││
+││ Raw JSON                                               ││
+││ {                                                      ││
+││   "file_path": "/workspace/claude-insight/CLAUDE.md",  ││
+││   "hook_event_name": "InstructionsLoaded",             ││
+││   "load_reason": "session-start",                      ││
+││   "memory_type": "project"                             ││
+││ }                                                      ││
 ││                                                        ││
 ││                                                        ││
 ││                                                        ││
