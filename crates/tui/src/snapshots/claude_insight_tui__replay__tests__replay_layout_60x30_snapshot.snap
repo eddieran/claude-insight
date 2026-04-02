@@ -1,12 +1,16 @@
 ---
 source: crates/tui/src/replay.rs
+assertion_line: 503
 expression: "render_replay(sample_state(), 60, 30)"
 ---
 ┌ Replay session-  [Tab] focus  [1/2/3] jump  [Enter] evide┐
 │┌ Timeline [1] ──────────────────────────────────────────┐│
-││ 2026-04-03T01:07:00Z 🔧 Tool call                      ││
-││ 2026-04-03T01:07:05Z 🛡️ Permission allowed             ││
-││ 2026-04-03T01:07:10Z 🚫 Permission denied              ││
+││   📋 2026-04-03T01:06:40Z                              ││
+││   📋 2026-04-03T01:06:50Z                              ││
+││   🔧 2026-04-03T01:07:00Z                              ││
+││   ❓ 2026-04-03T01:07:05Z                              ││
+││   🔧 2026-04-03T01:07:07Z                              ││
+││ ▸ 🚫 2026-04-03T01:07:10Z                              ││
 ││                                                        ││
 ││                                                        ││
 ││                                                        ││
@@ -26,9 +30,6 @@ expression: "render_replay(sample_state(), 60, 30)"
 ││                                                        ││
 ││                                                        ││
 ││                                                        ││
-││                                                        ││
-││                                                        ││
-││ ███                                                    ││
 │└────────────────────────────────────────────────────────┘│
-│ session- • $0.42 • 384 tok • 1 tools • 🔴 errors • 2026-0│
+│ session- • $0.42 • 768 tok • 2 tools • 🔴 errors • 2026-0│
 └──────────────────────────────────────────────────────────┘
