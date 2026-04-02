@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{error::ErrorKind, CommandFactory, Parser, Subcommand};
 use crossterm::style::{Color, Stylize};
 
 type CliResult<T = ()> = Result<T, Box<dyn Error>>;
@@ -77,12 +77,25 @@ enum DaemonCommand {
 async fn main() -> ExitCode {
     let _ = tracing_subscriber::fmt().with_env_filter("info").try_init();
 
-    match run(Cli::parse()).await {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(error) => {
-            eprintln!("{}", format!("error: {error}").red());
-            ExitCode::FAILURE
-        }
+    match Cli::try_parse() {
+        Ok(cli) => match run(cli).await {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("{}", format!("error: {error}").red());
+                ExitCode::FAILURE
+            }
+        },
+        Err(error) => match error.kind() {
+            ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
+                print!("{}", claude_insight_tui::ansi_banner());
+                let _ = error.print();
+                ExitCode::SUCCESS
+            }
+            _ => {
+                let _ = error.print();
+                ExitCode::FAILURE
+            }
+        },
     }
 }
 
@@ -96,6 +109,7 @@ async fn run(cli: Cli) -> CliResult {
         Some(Command::Normalize { rebuild }) => handle_normalize(rebuild),
         Some(Command::Daemon { command }) => handle_daemon(command).await,
         None => {
+            print!("{}", claude_insight_tui::ansi_banner());
             let mut command = Cli::command();
             command.print_help()?;
             println!();
@@ -109,6 +123,7 @@ fn handle_init() -> CliResult {
     let tui = claude_insight_tui::TuiStub::new("Claude Insight");
     let title = tui.title_line().to_string();
 
+    print!("{}", claude_insight_tui::ansi_banner());
     println!("{} {}", "Initialized".green().bold(), title.white().bold());
     println!("database: {}", db_path.display().to_string().cyan());
     println!("storage: {}", "sqlite".dark_grey());

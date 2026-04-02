@@ -194,6 +194,7 @@ fn help_lists_new_commands() -> Result<(), Box<dyn std::error::Error>> {
     assert!(normalize_help.status.success());
 
     let root_stdout = String::from_utf8(root_help.stdout)?;
+    assert!(root_stdout.contains("Local observability for Claude Code"));
     assert!(root_stdout.contains("trace"));
     assert!(root_stdout.contains("search"));
     assert!(root_stdout.contains("gc"));
@@ -203,6 +204,21 @@ fn help_lists_new_commands() -> Result<(), Box<dyn std::error::Error>> {
     let daemon_stdout = String::from_utf8(daemon_help.stdout)?;
     assert!(daemon_stdout.contains("start"));
     assert!(daemon_stdout.contains("stop"));
+
+    Ok(())
+}
+
+#[test]
+fn init_prints_first_run_banner() -> Result<(), Box<dyn std::error::Error>> {
+    let env = TestEnv::new()?;
+
+    let output = env.command().arg("init").output()?;
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("Local observability for Claude Code"));
+    assert!(stdout.contains("Initialized"));
 
     Ok(())
 }
