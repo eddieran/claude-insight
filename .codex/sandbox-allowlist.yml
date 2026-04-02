@@ -1,0 +1,14 @@
+# sandbox-allowlist.yml — network domains Codex agents may reach
+# claude-insight: Rust TUI observability tool for Claude Code
+
+# --- Version control & project management ---
+- github.com
+- api.github.com
+- ssh.github.com
+- api.linear.app
+
+# --- Package registries ---
+# Rust crates
+- crates.io
+- static.crates.io
+- index.crates.io

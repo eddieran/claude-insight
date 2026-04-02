@@ -1,0 +1,59 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .research/claude-hook-probe/capture-hook.mjs SessionStart .research/claude-hook-probe/out",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .research/claude-hook-probe/capture-hook.mjs UserPromptSubmit .research/claude-hook-probe/out",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .research/claude-hook-probe/capture-hook.mjs PreToolUse .research/claude-hook-probe/out",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .research/claude-hook-probe/capture-hook.mjs PostToolUse .research/claude-hook-probe/out",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .research/claude-hook-probe/capture-hook.mjs Stop .research/claude-hook-probe/out",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

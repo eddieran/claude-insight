@@ -1,23 +1,59 @@
 # Claude Insight
 
-Local observability and audit system for Claude Code. Evidence-chain system, not a reasoning-extraction system.
+Local observability and audit system for Claude Code. Evidence-chain TUI, not a reasoning-extraction system. Lazygit energy for AI agent sessions.
 
-## Skill routing
+## Repo layout
 
-When the user's request matches an available skill, ALWAYS invoke it using the Skill
-tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
-The skill has specialized workflows that produce better results than ad-hoc answers.
+```text
+claude-insight/
+├── src/
+│   ├── main.rs        # CLI entry point (clap)
+│   ├── daemon/        # axum HTTP server (hook event receiver)
+│   ├── storage/       # rusqlite + JSONL storage layer
+│   ├── tui/           # Ratatui three-pane replay UI
+│   └── models/        # Shared types (serde)
+├── tests/             # Integration tests
+├── scripts/           # Utility scripts
+├── Cargo.toml         # Rust project config
+├── WORKFLOW.md        # Symphony orchestration config
+└── .codex/            # Codex agent skills
+```
 
-Key routing rules:
-- Product ideas, "is this worth building", brainstorming → invoke office-hours
-- Bugs, errors, "why is this broken", 500 errors → invoke investigate
-- Ship, deploy, push, create PR → invoke ship
-- QA, test the site, find bugs → invoke qa
-- Code review, check my diff → invoke review
-- Update docs after shipping → invoke document-release
-- Weekly retro → invoke retro
-- Design system, brand → invoke design-consultation
-- Visual audit, design polish → invoke design-review
-- Architecture review → invoke plan-eng-review
-- Save progress, checkpoint, resume → invoke checkpoint
-- Code quality, health check → invoke health
+## Quick reference
+
+```bash
+# Build
+cargo build
+
+# Run tests
+cargo test
+
+# Lint
+cargo clippy -- -D warnings
+
+# Format check
+cargo fmt --check
+
+# Format fix
+cargo fmt
+
+# Run locally
+cargo run -- serve
+cargo run -- trace <session-id>
+```
+
+## Conventions
+
+- Rust 2021 edition, stable toolchain
+- Error handling: `thiserror` for library errors, `anyhow` for CLI/binary
+- No `unwrap()`/`expect()` in production paths
+- Commit format: `type(scope): short summary`
+- Branch naming: `<issue-key>-short-description` (e.g., `CI-42-add-fts-search`)
+- PR labels: `symphony` for agent-created PRs
+- Zero clippy warnings policy
+
+## Read first
+
+- This file (CLAUDE.md)
+- WORKFLOW.md (Symphony orchestration)
+- Cargo.toml (dependencies and features)
