@@ -457,7 +457,9 @@ fn app_dir() -> CliResult<PathBuf> {
 
 fn settings_path(global: bool) -> CliResult<PathBuf> {
     if global {
-        return Ok(user_home_dir()?.join(CLAUDE_DIR_NAME).join(SETTINGS_FILE_NAME));
+        return Ok(user_home_dir()?
+            .join(CLAUDE_DIR_NAME)
+            .join(SETTINGS_FILE_NAME));
     }
 
     Ok(std::env::current_dir()?
@@ -497,7 +499,10 @@ fn install_hooks(settings_path: &Path, capture_content: bool) -> CliResult<HookI
     if let Some(parent) = settings_path.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(settings_path, format!("{}\n", serde_json::to_string_pretty(&settings)?))?;
+    fs::write(
+        settings_path,
+        format!("{}\n", serde_json::to_string_pretty(&settings)?),
+    )?;
 
     Ok(HookInstallReport {
         configured_events: HOOK_EVENT_NAMES.len(),
@@ -543,17 +548,12 @@ fn user_home_dir() -> CliResult<PathBuf> {
 fn load_settings(path: &Path) -> CliResult<Value> {
     match fs::read_to_string(path) {
         Ok(contents) => Ok(serde_json::from_str(&contents)?),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            Ok(Value::Object(Map::new()))
-        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Value::Object(Map::new())),
         Err(error) => Err(error.into()),
     }
 }
 
-fn ensure_object<'a>(
-    value: &'a mut Value,
-    context: &str,
-) -> CliResult<&'a mut Map<String, Value>> {
+fn ensure_object<'a>(value: &'a mut Value, context: &str) -> CliResult<&'a mut Map<String, Value>> {
     value
         .as_object_mut()
         .ok_or_else(|| format!("{context} must be a JSON object").into())

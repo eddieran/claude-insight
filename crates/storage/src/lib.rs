@@ -89,7 +89,6 @@ impl Database {
             |row| row.get(0),
         )
     }
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

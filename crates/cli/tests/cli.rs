@@ -279,9 +279,20 @@ fn init_installs_project_hooks_and_starts_daemon() -> Result<(), Box<dyn std::er
     let stdout = String::from_utf8(output.stdout)?;
 
     assert!(settings_path.exists());
-    assert_eq!(settings["hooks"].as_object().map(|hooks| hooks.len()), Some(27));
-    assert!(event_has_insight_hook(&settings, "SessionStart", capture_port));
-    assert!(event_has_insight_hook(&settings, "PostToolUse", capture_port));
+    assert_eq!(
+        settings["hooks"].as_object().map(|hooks| hooks.len()),
+        Some(27)
+    );
+    assert!(event_has_insight_hook(
+        &settings,
+        "SessionStart",
+        capture_port
+    ));
+    assert!(event_has_insight_hook(
+        &settings,
+        "PostToolUse",
+        capture_port
+    ));
     assert!(pid_file.exists());
     assert!(daemon_responds(capture_port));
     assert!(stdout.contains("settings:"));
@@ -349,8 +360,16 @@ fn init_global_preserves_existing_hooks_and_is_idempotent() -> Result<(), Box<dy
         notification_entries[0]["hooks"][0]["command"].as_str(),
         Some("echo keep-me")
     );
-    assert!(event_has_insight_hook(&settings, "Notification", capture_port));
-    assert!(event_has_insight_hook(&settings, "TaskCreated", capture_port));
+    assert!(event_has_insight_hook(
+        &settings,
+        "Notification",
+        capture_port
+    ));
+    assert!(event_has_insight_hook(
+        &settings,
+        "TaskCreated",
+        capture_port
+    ));
 
     let second_output = env
         .command()

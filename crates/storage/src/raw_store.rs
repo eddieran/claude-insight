@@ -170,7 +170,6 @@ impl Database {
         self.conn
             .query_row("SELECT COUNT(*) FROM raw_events", [], |row| row.get(0))
     }
-
 }
 
 pub(crate) fn map_raw_event(row: &Row<'_>) -> rusqlite::Result<RawEvent> {
