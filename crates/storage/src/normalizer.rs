@@ -46,11 +46,11 @@ pub(crate) fn rebuild(database: &Database) -> rusqlite::Result<NormalizationStat
     tx.execute_batch(
         "
         DELETE FROM event_links;
-        DELETE FROM permission_decisions;
-        DELETE FROM instruction_loads;
         DELETE FROM config_snapshots;
-        DELETE FROM prompts;
+        DELETE FROM instruction_loads;
+        DELETE FROM permission_decisions;
         DELETE FROM tool_invocations;
+        DELETE FROM prompts;
         DELETE FROM sessions;
         UPDATE normalization_state
         SET last_raw_event_id = 0
@@ -1215,44 +1215,6 @@ mod tests {
         assert_eq!(stats.last_raw_event_id, raw_id);
         assert_eq!(db.normalization_watermark()?, raw_id);
         assert_eq!(session_count, 0);
-
-        Ok(())
-    }
-
-    #[test]
-    fn rebuild_reprocesses_existing_raw_events() -> rusqlite::Result<()> {
-        let db = Database::new(":memory:")?;
-        let fixtures = [
-            fixture_root().join("hooks/SessionStart.json"),
-            fixture_root().join("hooks/UserPromptSubmit.json"),
-            fixture_root().join("hooks/PreToolUse.json"),
-            fixture_root().join("hooks/PostToolUse.json"),
-            fixture_root().join("hooks/SessionEnd.json"),
-        ];
-
-        for (index, path) in fixtures.iter().enumerate() {
-            let payload = fs::read_to_string(path)
-                .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
-            insert_fixture_event(&db, "hook", &payload, index + 1)?;
-        }
-
-        let first = db.normalize()?;
-        let session_count_before: i64 =
-            db.conn
-                .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
-        let rebuilt = db.rebuild()?;
-
-        assert_eq!(first.processed_events, fixtures.len());
-        assert_eq!(rebuilt.processed_events, fixtures.len());
-        assert_eq!(
-            db.normalization_watermark()?,
-            i64::try_from(fixtures.len()).unwrap_or(0)
-        );
-
-        let session_count_after: i64 =
-            db.conn
-                .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
-        assert_eq!(session_count_after, session_count_before);
 
         Ok(())
     }

@@ -52,11 +52,7 @@ const HOOK_EVENT_NAMES: &[&str] = &[
 ];
 
 #[derive(Debug, Parser)]
-#[command(
-    name = "claude-insight",
-    about = "Observe Claude Code sessions from the terminal",
-    before_help = claude_insight_tui::ASCII_BANNER
-)]
+#[command(name = "claude-insight", about = "Local observability for Claude Code")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -153,7 +149,6 @@ async fn run(cli: Cli) -> CliResult {
 }
 
 async fn handle_init(global: bool, capture_content: bool) -> CliResult {
-    print!("{}", claude_insight_tui::ansi_banner());
     let settings_path = settings_path(global)?;
     let install_report = install_hooks(&settings_path, capture_content)?;
     let daemon_report = daemon_start().await?;
@@ -163,11 +158,13 @@ async fn handle_init(global: bool, capture_content: bool) -> CliResult {
         "status=started"
     };
 
+    println!("{}", claude_insight_tui::ASCII_BANNER);
     println!(
         "{} {}",
         "Initialized".green().bold(),
         "Claude Insight".white().bold()
     );
+    println!("{}", "Local observability for Claude Code".dark_grey());
     println!("settings: {}", settings_path.display().to_string().cyan());
     println!(
         "hooks: {}",

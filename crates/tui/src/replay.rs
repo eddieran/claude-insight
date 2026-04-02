@@ -12,6 +12,7 @@ use crate::session_list::{
     SessionEvent, SessionEventKind, SessionListItem, BACKGROUND, BORDER, BORDER_ACTIVE, SURFACE,
     TEXT_DIM, TEXT_PRIMARY,
 };
+use crate::transcript::{render_transcript_pane, ReplayTranscript};
 
 #[cfg(test)]
 use ratatui::{
@@ -69,16 +70,32 @@ pub struct ReplayViewState {
     pub focus: ReplayPane,
     pub selected_event: usize,
     pub evidence_overlay_open: bool,
+    pub transcript: ReplayTranscript,
 }
 
 impl ReplayViewState {
     pub fn from_session(session: SessionListItem) -> Self {
-        Self {
+        let mut state = Self {
             selected_event: session.event_count().saturating_sub(1),
+            transcript: ReplayTranscript::from_session_events(session.event_count()),
             session,
             focus: ReplayPane::Timeline,
             evidence_overlay_open: false,
-        }
+        };
+        state.transcript.reveal_selected_event(state.selected_event);
+        state
+    }
+
+    pub fn with_transcript(session: SessionListItem, transcript: ReplayTranscript) -> Self {
+        let mut state = Self {
+            selected_event: session.event_count().saturating_sub(1),
+            transcript,
+            session,
+            focus: ReplayPane::Timeline,
+            evidence_overlay_open: false,
+        };
+        state.transcript.reveal_selected_event(state.selected_event);
+        state
     }
 
     pub fn session_id(&self) -> &str {
@@ -92,14 +109,17 @@ impl ReplayViewState {
             KeyCode::Char('2') => self.set_focus(ReplayPane::Transcript),
             KeyCode::Char('3') | KeyCode::Enter => self.set_focus(ReplayPane::Evidence),
             KeyCode::Char('j') | KeyCode::Down => {
-                if self.focus == ReplayPane::Timeline {
+                if matches!(self.focus, ReplayPane::Timeline | ReplayPane::Transcript) {
                     self.move_selection(1);
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                if self.focus == ReplayPane::Timeline {
+                if matches!(self.focus, ReplayPane::Timeline | ReplayPane::Transcript) {
                     self.move_selection(-1);
                 }
+            }
+            KeyCode::Char('e') => {
+                let _ = self.transcript.toggle_selected_entry(self.selected_event);
             }
             _ => {}
         }
@@ -122,6 +142,7 @@ impl ReplayViewState {
 
         let next = self.selected_event as isize + delta;
         self.selected_event = next.clamp(0, self.session.events.len() as isize - 1) as usize;
+        self.transcript.reveal_selected_event(self.selected_event);
     }
 }
 
@@ -272,38 +293,13 @@ impl ReplayView {
     }
 
     fn render_transcript(frame: &mut Frame<'_>, area: Rect, state: &ReplayViewState) {
-        let block = pane_block(
+        render_transcript_pane(
+            frame,
+            area,
             ReplayPane::Transcript.title(),
             state.focus == ReplayPane::Transcript,
-        );
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
-
-        let lines = vec![
-            Line::from(Span::styled(
-                format!("session {}", short_session_id(&state.session.session_id)),
-                Style::new().fg(TEXT_PRIMARY).add_modifier(Modifier::BOLD),
-            )),
-            Line::from(Span::styled(
-                format!("branch {}", state.session.git_branch),
-                Style::new().fg(TEXT_DIM),
-            )),
-            Line::from(""),
-            Line::from(Span::styled(
-                "Transcript content lands in MOT-130.",
-                Style::new().fg(TEXT_PRIMARY),
-            )),
-            Line::from(Span::styled(
-                "This ticket wires layout, focus, and responsive behavior only.",
-                Style::new().fg(TEXT_DIM),
-            )),
-        ];
-
-        frame.render_widget(
-            Paragraph::new(lines)
-                .style(Style::new().bg(SURFACE))
-                .alignment(Alignment::Left),
-            inner.inner(Margin::new(1, 0)),
+            &state.transcript,
+            state.selected_event,
         );
     }
 
@@ -489,6 +485,7 @@ mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     use super::*;
+    use crate::transcript::{ToolInputKind, TranscriptEntry, TranscriptSpeaker};
     use crate::widgets::mood_badge::Mood;
 
     #[test]
@@ -527,6 +524,40 @@ mod tests {
     }
 
     #[test]
+    fn replay_transcript_toggle_expands_selected_tool_card() {
+        let mut state = sample_state();
+        state.selected_event = 2;
+        state.transcript.reveal_selected_event(state.selected_event);
+
+        assert!(!state.transcript.is_tool_expanded(2));
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE));
+
+        assert!(state.transcript.is_tool_expanded(2));
+    }
+
+    #[test]
+    fn replay_transcript_auto_scrolls_to_selected_event() {
+        let mut initial = sample_state();
+        initial.selected_event = 0;
+        initial
+            .transcript
+            .reveal_selected_event(initial.selected_event);
+
+        let mut advanced = sample_state();
+        advanced.selected_event = 5;
+        advanced
+            .transcript
+            .reveal_selected_event(advanced.selected_event);
+
+        let initial_render = render_replay(initial, 80, 16);
+        let advanced_render = render_replay(advanced, 80, 16);
+
+        assert!(!initial_render.contains("selected entry."));
+        assert!(advanced_render.contains("selected entry."));
+    }
+
+    #[test]
     fn replay_enter_opens_evidence_overlay() {
         let mut state = sample_state();
 
@@ -549,23 +580,61 @@ mod tests {
     }
 
     fn sample_state() -> ReplayViewState {
-        ReplayViewState::from_session(SessionListItem::new(
+        let session = SessionListItem::new(
             "session-1",
             "feature/replay-layout",
             parse_timestamp("2026-04-03T01:08:00Z"),
             0.42,
             vec![
+                SessionEvent::new(
+                    SessionEventKind::Other,
+                    parse_timestamp("2026-04-03T01:06:40Z"),
+                ),
+                SessionEvent::new(
+                    SessionEventKind::Other,
+                    parse_timestamp("2026-04-03T01:06:50Z"),
+                ),
                 SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:00Z")),
                 SessionEvent::new(
                     SessionEventKind::PermissionRequest,
                     parse_timestamp("2026-04-03T01:07:05Z"),
                 ),
+                SessionEvent::tool("tool-2", parse_timestamp("2026-04-03T01:07:07Z")),
                 SessionEvent::new(
                     SessionEventKind::PermissionDenied,
                     parse_timestamp("2026-04-03T01:07:10Z"),
                 ),
             ],
-        ))
+        );
+
+        ReplayViewState::with_transcript(
+            session,
+            ReplayTranscript::new(vec![
+                TranscriptEntry::user(0, "Build the transcript pane for this session replay."),
+                TranscriptEntry::assistant(
+                    1,
+                    "I am rendering a real conversation view with tool cards and subagent sections.",
+                ),
+                TranscriptEntry::tool(
+                    2,
+                    "exec_command",
+                    ToolInputKind::Command,
+                    "cargo test -p tui -- transcript",
+                    "Compiling tui v0.1.0\nerror[E0004]: SessionEventKind::Retry not covered\nhelp: add a match arm for Retry",
+                ),
+                TranscriptEntry::subagent_header(3, 41, "review"),
+                TranscriptEntry::nested_message(
+                    4,
+                    41,
+                    TranscriptSpeaker::Assistant,
+                    "Subagent reviewed the transcript widget output and confirmed the tool card shape.",
+                ),
+                TranscriptEntry::assistant(
+                    5,
+                    "The permission-denied event stays visible in the timeline while the transcript follows the selected entry.",
+                ),
+            ]),
+        )
     }
 
     fn parse_timestamp(input: &str) -> OffsetDateTime {
