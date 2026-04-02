@@ -1,10 +1,11 @@
 use crate::{raw_store::map_raw_event, Database, RawEvent};
 use claude_insight_types::{
-    BaseHookInput, HookEvent, InstructionsLoadedInput, PermissionDeniedInput,
+    BaseHookInput, HookEvent, HookEventName, InstructionsLoadedInput, PermissionDeniedInput,
     PermissionRequestInput, PostToolUseFailureInput, PostToolUseInput, PreToolUseInput,
     SessionEndInput, SessionStartInput, UserPromptSubmitInput,
 };
 use rusqlite::{params, Transaction};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NormalizationStats {
@@ -131,10 +132,7 @@ fn normalize_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<(
 
 fn normalize_hook_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<()> {
     match event.event_type.as_str() {
-        "SessionStart" => match parse_hook_event(event)? {
-            HookEvent::SessionStart(input) => normalize_session_start(tx, event, &input),
-            _ => unreachable_variant(event.event_type.as_str()),
-        },
+        "SessionStart" => normalize_session_start_event(tx, event),
         "SessionEnd" => match parse_hook_event(event)? {
             HookEvent::SessionEnd(input) => normalize_session_end(tx, event, &input),
             _ => unreachable_variant(event.event_type.as_str()),
@@ -184,6 +182,14 @@ fn normalize_hook_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Res
     }
 }
 
+fn normalize_session_start_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<()> {
+    match parse_hook_event(event) {
+        Ok(HookEvent::SessionStart(input)) => normalize_session_start(tx, event, &input),
+        Ok(_) => unreachable_variant(event.event_type.as_str()),
+        Err(_) => normalize_session_start_fallback(tx, event),
+    }
+}
+
 fn parse_hook_event(event: &RawEvent) -> rusqlite::Result<HookEvent> {
     let mut value =
         serde_json::from_str::<serde_json::Value>(&event.payload_json).map_err(|error| {
@@ -223,6 +229,27 @@ fn parse_hook_event(event: &RawEvent) -> rusqlite::Result<HookEvent> {
     })
 }
 
+fn normalize_session_start_fallback(
+    tx: &Transaction<'_>,
+    event: &RawEvent,
+) -> rusqlite::Result<()> {
+    let payload: Value = serde_json::from_str(&event.payload_json).unwrap_or(Value::Null);
+    let Some(base) = fallback_base_hook_input(event, &payload) else {
+        return Ok(());
+    };
+
+    upsert_session(
+        tx,
+        &base,
+        event.claude_version.as_deref(),
+        payload_string(&payload, "model"),
+        Some(event.ts.as_str()),
+        None,
+        None,
+        payload_string(&payload, "source"),
+    )
+}
+
 fn normalize_session_start(
     tx: &Transaction<'_>,
     event: &RawEvent,
@@ -238,6 +265,26 @@ fn normalize_session_start(
         None,
         Some(input.source.as_str()),
     )
+}
+
+fn fallback_base_hook_input(event: &RawEvent, payload: &Value) -> Option<BaseHookInput> {
+    Some(BaseHookInput {
+        session_id: event.session_id.clone()?,
+        transcript_path: payload_string(payload, "transcript_path")
+            .unwrap_or_default()
+            .to_owned(),
+        cwd: payload_string(payload, "cwd")
+            .unwrap_or_default()
+            .to_owned(),
+        permission_mode: payload_string(payload, "permission_mode").map(str::to_owned),
+        agent_id: payload_string(payload, "agent_id").map(str::to_owned),
+        agent_type: payload_string(payload, "agent_type").map(str::to_owned),
+        hook_event_name: HookEventName::SessionStart,
+    })
+}
+
+fn payload_string<'a>(payload: &'a Value, field: &str) -> Option<&'a str> {
+    payload.get(field).and_then(Value::as_str)
 }
 
 fn normalize_session_end(

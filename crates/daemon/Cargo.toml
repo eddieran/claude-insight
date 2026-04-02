@@ -1,12 +1,20 @@
 [package]
-name = "claude-insight-daemon"
+name = "daemon"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
+
+[lib]
+name = "claude_insight_daemon"
 
 [dependencies]
 axum.workspace = true
 claude-insight-capture.workspace = true
 claude-insight-storage.workspace = true
-tokio.workspace = true
+rusqlite.workspace = true
+tokio = { workspace = true, features = ["net", "signal", "sync", "time"] }
 tracing.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile = "3"
