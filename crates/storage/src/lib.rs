@@ -1,5 +1,6 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
+mod correlator;
 mod fts;
 mod maintenance;
 mod normalizer;
@@ -10,6 +11,7 @@ mod sessions;
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
+pub use correlator::{CorrelationStats, EventLink};
 pub use maintenance::GcReport;
 pub use normalizer::NormalizationStats;
 pub use raw_store::{NewRawEvent, RawEvent, RawEventQuery};
@@ -28,7 +30,7 @@ impl Database {
     pub fn new(path: impl AsRef<Path>) -> rusqlite::Result<Self> {
         let path = path.as_ref();
 
-        if path != Path::new(":memory:") {
+        if schema::should_create_parent_dir(path) {
             if let Some(parent) = path
                 .parent()
                 .filter(|parent| !parent.as_os_str().is_empty())
@@ -38,7 +40,7 @@ impl Database {
             }
         }
 
-        let conn = Connection::open(path)?;
+        let conn = schema::open_connection(path)?;
         schema::configure_connection(&conn, path)?;
 
         let database = Self { conn };
@@ -84,16 +86,6 @@ impl Database {
             [],
             |row| row.get(0),
         )
-    }
-
-    pub fn delete_raw_events_before(&self, cutoff_ts: &str) -> rusqlite::Result<usize> {
-        let deleted = self.conn.execute(
-            "DELETE FROM raw_events
-             WHERE ts < ?1",
-            [cutoff_ts],
-        )?;
-        self.rebuild_fts_index()?;
-        Ok(deleted)
     }
 }
 
