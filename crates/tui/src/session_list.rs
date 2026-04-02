@@ -12,6 +12,11 @@ use ratatui::{
 };
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 
+use crate::widgets::{
+    mood_badge::{compute_mood, render_mood_badge, Mood},
+    sparkline::compute_sparkline_data,
+};
+
 pub const BACKGROUND: Color = Color::Rgb(0x0d, 0x11, 0x17);
 pub const SURFACE: Color = Color::Rgb(0x16, 0x1b, 0x22);
 pub const BORDER: Color = Color::Rgb(0x30, 0x36, 0x3d);
@@ -22,39 +27,6 @@ pub const ACCENT_CYAN: Color = Color::Rgb(0x58, 0xa6, 0xff);
 pub const ACCENT_GREEN: Color = Color::Rgb(0x3f, 0xb9, 0x50);
 pub const ACCENT_RED: Color = Color::Rgb(0xf8, 0x51, 0x49);
 pub const ACCENT_AMBER: Color = Color::Rgb(0xd2, 0x99, 0x22);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Mood {
-    Clean,
-    Friction,
-    Errors,
-}
-
-impl Mood {
-    pub fn emoji(self) -> &'static str {
-        match self {
-            Self::Clean => "🟢",
-            Self::Friction => "🟡",
-            Self::Errors => "🔴",
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Clean => "clean",
-            Self::Friction => "friction",
-            Self::Errors => "errors",
-        }
-    }
-
-    pub fn style(self) -> Style {
-        match self {
-            Self::Clean => Style::new().fg(ACCENT_GREEN),
-            Self::Friction => Style::new().fg(ACCENT_AMBER),
-            Self::Errors => Style::new().fg(ACCENT_RED),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MoodFilter {
@@ -130,6 +102,7 @@ pub enum SessionEventKind {
     Other,
     Tool,
     PermissionRequest,
+    Retry,
     PermissionDenied,
     PostToolUseFailure,
     StopFailure,
@@ -140,6 +113,7 @@ impl SessionEventKind {
         match event_type {
             "PreToolUse" | "PostToolUse" => Self::Tool,
             "PermissionRequest" => Self::PermissionRequest,
+            "Retry" => Self::Retry,
             "PermissionDenied" => Self::PermissionDenied,
             "PostToolUseFailure" => Self::PostToolUseFailure,
             "StopFailure" => Self::StopFailure,
@@ -207,26 +181,7 @@ impl SessionListItem {
     }
 
     pub fn mood(&self) -> Mood {
-        if self.events.iter().any(|event| {
-            matches!(
-                event.kind,
-                SessionEventKind::PermissionDenied
-                    | SessionEventKind::PostToolUseFailure
-                    | SessionEventKind::StopFailure
-            )
-        }) {
-            Mood::Errors
-        } else if self
-            .events
-            .iter()
-            .filter(|event| event.kind == SessionEventKind::PermissionRequest)
-            .count()
-            > 2
-        {
-            Mood::Friction
-        } else {
-            Mood::Clean
-        }
+        compute_mood(&self.events)
     }
 
     pub fn event_count(&self) -> usize {
@@ -258,33 +213,7 @@ impl SessionListItem {
     }
 
     pub fn activity_buckets(&self) -> Vec<u64> {
-        if self.events.is_empty() {
-            return vec![0];
-        }
-
-        let start = self
-            .events
-            .iter()
-            .map(|event| event.timestamp)
-            .min()
-            .unwrap_or(self.last_updated);
-        let end = self
-            .events
-            .iter()
-            .map(|event| event.timestamp)
-            .max()
-            .unwrap_or(start);
-        let bucket_count = (((end - start).whole_seconds() / 5).max(0) as usize) + 1;
-        let mut buckets = vec![0_u64; bucket_count.max(1)];
-
-        for event in &self.events {
-            let bucket = ((event.timestamp - start).whole_seconds() / 5).max(0) as usize;
-            if let Some(slot) = buckets.get_mut(bucket) {
-                *slot += 1;
-            }
-        }
-
-        buckets
+        compute_sparkline_data(&self.events, 5)
     }
 }
 
@@ -719,8 +648,7 @@ fn render_session_row(
     );
     let mood_value = session.mood();
     frame.render_widget(
-        Paragraph::new(format!(" {} {}", mood_value.emoji(), mood_value.label()))
-            .style(row_style.patch(mood_value.style())),
+        Paragraph::new(render_mood_badge(mood_value)).style(row_style),
         mood,
     );
 }
@@ -818,6 +746,22 @@ mod tests {
         );
 
         assert_eq!(item.mood(), Mood::Errors);
+    }
+
+    #[test]
+    fn mood_turns_friction_after_multiple_retries() {
+        let item = SessionListItem::new(
+            "session-1",
+            "main",
+            parse_timestamp("2026-04-03T01:08:00Z"),
+            0.42,
+            vec![
+                event(SessionEventKind::Retry, "2026-04-03T01:07:00Z"),
+                event(SessionEventKind::Retry, "2026-04-03T01:07:05Z"),
+            ],
+        );
+
+        assert_eq!(item.mood(), Mood::Friction);
     }
 
     #[test]

@@ -235,6 +235,7 @@ fn help_lists_new_commands() -> Result<(), Box<dyn std::error::Error>> {
     assert!(normalize_help.status.success());
 
     let root_stdout = String::from_utf8(root_help.stdout)?;
+    assert!(root_stdout.contains("Local observability for Claude Code"));
     assert!(root_stdout.contains("trace"));
     assert!(root_stdout.contains("search"));
     assert!(root_stdout.contains("gc"));
@@ -390,6 +391,21 @@ fn init_global_preserves_existing_hooks_and_is_idempotent() -> Result<(), Box<dy
         .args(["daemon", "stop"])
         .output()?;
     assert!(stop_output.status.success());
+
+    Ok(())
+}
+
+#[test]
+fn init_prints_first_run_banner() -> Result<(), Box<dyn std::error::Error>> {
+    let env = TestEnv::new()?;
+
+    let output = env.command().arg("init").output()?;
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("Local observability for Claude Code"));
+    assert!(stdout.contains("Initialized"));
 
     Ok(())
 }
