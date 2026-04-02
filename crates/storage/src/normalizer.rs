@@ -41,6 +41,10 @@ pub(crate) fn normalize(database: &Database) -> rusqlite::Result<NormalizationSt
     })
 }
 
+#[expect(
+    dead_code,
+    reason = "normalize --rebuild is wired in a follow-up change"
+)]
 pub(crate) fn rebuild(database: &Database) -> rusqlite::Result<NormalizationStats> {
     let tx = database.conn.unchecked_transaction()?;
 

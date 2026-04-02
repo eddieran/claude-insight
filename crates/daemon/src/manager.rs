@@ -663,6 +663,7 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
+    #[ignore = "sending SIGTERM to the test process terminates the harness in CI"]
     async fn sigterm_causes_graceful_shutdown() -> Result<(), Box<dyn Error>> {
         let workspace = TestWorkspace::new("sigterm-shutdown")?;
         let mut manager = workspace.manager();
