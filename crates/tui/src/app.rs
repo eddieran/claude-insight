@@ -1,12 +1,7 @@
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    prelude::{Alignment, Frame},
-    style::{Modifier, Style, Stylize},
-    text::Line,
-    widgets::{Block, Borders, Paragraph},
-};
+use ratatui::{layout::Rect, prelude::Frame};
 
+use crate::replay::{ReplayView, ReplayViewState};
 use crate::session_list::{SessionListOverlay, SessionListView};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,11 +10,6 @@ pub enum AppAction {
     Quit,
     OpenReplay { session_id: String },
     ReturnToSessionList,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReplayViewState {
-    pub session_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,7 +49,7 @@ impl App {
     pub fn render(&self, frame: &mut Frame<'_>, area: Rect) {
         match &self.view {
             AppView::SessionList => self.session_list.render(frame, area),
-            AppView::Replay(state) => render_replay_placeholder(frame, area, state),
+            AppView::Replay(state) => ReplayView::render(frame, area, state),
         }
     }
 
@@ -90,9 +80,7 @@ impl App {
                 {
                     if let Some(session) = self.session_list.selected_session() {
                         let session_id = session.session_id.clone();
-                        self.view = AppView::Replay(ReplayViewState {
-                            session_id: session_id.clone(),
-                        });
+                        self.view = AppView::Replay(ReplayViewState::from_session(session.clone()));
                         return AppAction::OpenReplay { session_id };
                     }
                 }
@@ -100,44 +88,17 @@ impl App {
                 self.session_list.handle_key_event(key);
                 AppAction::None
             }
-            AppView::Replay(_) => {
+            AppView::Replay(state) => {
                 if matches!(key.code, KeyCode::Esc) {
                     self.view = AppView::SessionList;
                     AppAction::ReturnToSessionList
                 } else {
+                    state.handle_key_event(key);
                     AppAction::None
                 }
             }
         }
     }
-}
-
-fn render_replay_placeholder(frame: &mut Frame<'_>, area: Rect, state: &ReplayViewState) {
-    let block = Block::default()
-        .title(Line::from(" Replay ").bold())
-        .borders(Borders::ALL)
-        .border_style(Style::new().cyan());
-    let inner = block.inner(area);
-
-    frame.render_widget(block, area);
-
-    let [body_area, footer_area] = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)])
-        .areas(inner);
-
-    let body = Paragraph::new(format!(
-        "Replay view for {} is not in this ticket yet.",
-        state.session_id
-    ))
-    .alignment(Alignment::Center)
-    .fg(crate::session_list::TEXT_DIM);
-    frame.render_widget(body, body_area);
-
-    let footer = Paragraph::new("Esc back  q quit")
-        .style(Style::new().add_modifier(Modifier::DIM))
-        .alignment(Alignment::Center);
-    frame.render_widget(footer, footer_area);
 }
 
 fn is_quit_key(key: KeyEvent) -> bool {
@@ -180,9 +141,7 @@ mod tests {
         );
         assert_eq!(
             app.view(),
-            &AppView::Replay(ReplayViewState {
-                session_id: "session-1".to_string(),
-            })
+            &AppView::Replay(ReplayViewState::from_session(sample_sessions()[0].clone()))
         );
     }
 
