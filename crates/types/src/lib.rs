@@ -2,6 +2,10 @@
 
 pub const CRATE_NAME: &str = "claude-insight-types";
 
+pub mod hooks;
+
+pub use hooks::*;
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlaceholderEvent {
     pub source: String,
