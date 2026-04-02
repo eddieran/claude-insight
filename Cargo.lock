@@ -273,18 +273,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "claude-insight-tui"
-version = "0.1.0"
-dependencies = [
- "crossterm",
- "ratatui",
- "syntect",
- "tracing",
- "types",
-]
-
-[[package]]
-name = "cli"
+name = "claude-insight"
 version = "0.1.0"
 dependencies = [
  "capture",
@@ -297,6 +286,17 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "claude-insight-tui"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "ratatui",
+ "syntect",
+ "tracing",
+ "types",
 ]
 
 [[package]]

@@ -10,6 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
+description = "Local observability and audit tooling for Claude Code sessions."
 edition = "2021"
 license = "MIT"
 version = "0.1.0"
