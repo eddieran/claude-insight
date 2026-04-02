@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="760" viewBox="0 0 1440 760" role="img" aria-labelledby="title desc">
+  <title id="title">Claude Insight session list screenshot</title>
+  <desc id="desc">Terminal-style screenshot of the Claude Insight session list with mood badges and sparklines.</desc>
+  <rect width="1440" height="760" fill="#0d1117"/>
+  <rect x="24" y="24" width="1392" height="712" rx="18" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+  <text x="56" y="76" fill="#c9d1d9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="26">┌ CLAUDE INSIGHT ──────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+  <text x="56" y="118" fill="#58a6ff" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│◉ Sessions                        [/] Search  [s] date                                                                │</text>
+  <text x="56" y="160" fill="#c9d1d9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│▸ #1  main                     2min ago   ████           $0.42    2 tools    🟢 clean                                 │</text>
+  <text x="56" y="202" fill="#c9d1d9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│  #2  feature/tui-session-list 1hr ago    ████           $1.23    1 tools    🟡 friction                              │</text>
+  <text x="56" y="244" fill="#c9d1d9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│  #3  main                     5hr ago    ██             $0.05    1 tools    🔴 errors                                │</text>
+  <text x="56" y="328" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│                                                                                                                      │</text>
+  <text x="56" y="370" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│    Session list view with keyboard-first sorting, filtering, search, and replay entry.                               │</text>
+  <text x="56" y="454" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│                                                                                                                      │</text>
+  <text x="56" y="580" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│▁▂▃▅▇ = activity sparkline    🟢🟡🔴 = session mood                                                                   │</text>
+  <text x="56" y="622" fill="#c9d1d9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">│                             j/k navigate  Enter open  s sort  f filter  / search  q quit                             │</text>
+  <text x="56" y="664" fill="#c9d1d9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="26">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+</svg>

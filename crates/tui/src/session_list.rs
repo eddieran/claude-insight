@@ -12,6 +12,7 @@ use ratatui::{
 };
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 
+use crate::evidence::EvidenceDetails;
 use crate::widgets::{
     mood_badge::{compute_mood, render_mood_badge, Mood},
     sparkline::compute_sparkline_data,
@@ -157,16 +158,21 @@ pub struct SessionEvent {
     pub kind: SessionEventKind,
     pub timestamp: OffsetDateTime,
     pub tool_use_id: Option<String>,
+    pub event_type: String,
     pub label: String,
+    pub evidence: EvidenceDetails,
 }
 
 impl SessionEvent {
     pub fn new(kind: SessionEventKind, timestamp: OffsetDateTime) -> Self {
+        let label = kind.default_label().to_string();
         Self {
             kind,
             timestamp,
             tool_use_id: None,
-            label: kind.default_label().to_string(),
+            event_type: label.clone(),
+            label,
+            evidence: EvidenceDetails::default(),
         }
     }
 
@@ -175,13 +181,64 @@ impl SessionEvent {
             kind: SessionEventKind::Tool,
             timestamp,
             tool_use_id: Some(tool_use_id.into()),
+            event_type: "Tool".to_string(),
             label: SessionEventKind::Tool.default_label().to_string(),
+            evidence: EvidenceDetails::default(),
+        }
+    }
+
+    pub fn named(
+        kind: SessionEventKind,
+        event_type: impl Into<String>,
+        timestamp: OffsetDateTime,
+    ) -> Self {
+        let event_type = event_type.into();
+        Self {
+            kind,
+            timestamp,
+            tool_use_id: None,
+            label: event_type.clone(),
+            event_type,
+            evidence: EvidenceDetails::default(),
         }
     }
 
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
         self.label = label.into();
         self
+    }
+
+    pub fn with_evidence(mut self, evidence: EvidenceDetails) -> Self {
+        self.evidence = evidence;
+        self
+    }
+
+    pub fn with_linked_events(mut self, linked_events: Vec<crate::evidence::LinkedEvent>) -> Self {
+        self.evidence.linked_events = linked_events;
+        self
+    }
+
+    pub fn event_type(&self) -> &str {
+        &self.event_type
+    }
+
+    pub fn evidence(&self) -> &EvidenceDetails {
+        &self.evidence
+    }
+
+    pub fn kind_icon(&self) -> &'static str {
+        match self.kind {
+            SessionEventKind::SessionBoundary => "📋",
+            SessionEventKind::UserPromptSubmit => "💬",
+            SessionEventKind::InstructionsLoaded => "📖",
+            SessionEventKind::Subagent => "🤖",
+            SessionEventKind::Other => "📋",
+            SessionEventKind::Tool => "🔧",
+            SessionEventKind::PermissionRequest => "🛡️",
+            SessionEventKind::Retry => "🔁",
+            SessionEventKind::PermissionDenied => "🚫",
+            SessionEventKind::PostToolUseFailure | SessionEventKind::StopFailure => "⚠️",
+        }
     }
 }
 

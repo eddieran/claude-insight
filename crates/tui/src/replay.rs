@@ -414,6 +414,10 @@ fn format_timestamp(timestamp: OffsetDateTime) -> String {
 
 fn event_emoji(kind: SessionEventKind) -> &'static str {
     match kind {
+        SessionEventKind::SessionBoundary => "📋",
+        SessionEventKind::UserPromptSubmit => "💬",
+        SessionEventKind::InstructionsLoaded => "📖",
+        SessionEventKind::Subagent => "🤖",
         SessionEventKind::Other => "📋",
         SessionEventKind::Tool => "🔧",
         SessionEventKind::PermissionRequest => "❓",
