@@ -1,8 +1,11 @@
 [package]
-name = "claude-insight-storage"
+name = "storage"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
+
+[lib]
+name = "claude_insight_storage"
 
 [dependencies]
 claude-insight-types.workspace = true
