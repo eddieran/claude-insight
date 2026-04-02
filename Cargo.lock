@@ -177,6 +177,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
+name = "capture"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "notify",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "storage",
+ "time",
+ "tokio",
+ "tower",
+ "tracing",
+ "types",
+]
+
+[[package]]
 name = "cassowary"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -248,26 +265,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "claude-insight-capture"
-version = "0.1.0"
-dependencies = [
- "axum",
- "notify",
- "rusqlite",
- "serde",
- "serde_json",
- "storage",
- "tokio",
- "tracing",
- "types",
-]
-
-[[package]]
 name = "claude-insight-cli"
 version = "0.1.0"
 dependencies = [
+ "capture",
  "clap",
- "claude-insight-capture",
  "claude-insight-daemon",
  "claude-insight-tui",
  "storage",
@@ -281,7 +283,7 @@ name = "claude-insight-daemon"
 version = "0.1.0"
 dependencies = [
  "axum",
- "claude-insight-capture",
+ "capture",
  "storage",
  "tokio",
  "tracing",
