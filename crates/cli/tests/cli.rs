@@ -182,6 +182,42 @@ fn normalize_materializes_sessions_table() -> Result<(), Box<dyn std::error::Err
 }
 
 #[test]
+fn normalize_rebuild_flag_replays_raw_events() -> Result<(), Box<dyn std::error::Error>> {
+    let env = TestEnv::new()?;
+    let database = env.database()?;
+
+    database.insert_raw_event(
+        "session-1",
+        "hook",
+        "SessionStart",
+        "2026-04-03T15:00:00Z",
+        &serde_json::json!({
+            "hook_event_name": "SessionStart",
+            "session_id": "session-1",
+            "source": "startup",
+            "cwd": "/workspace/claude-insight",
+            "transcript_path": "/workspace/.claude/projects/claude-insight/session-1.jsonl",
+        })
+        .to_string(),
+    )?;
+
+    let output = env.command().args(["normalize", "--rebuild"]).output()?;
+    let database = env.database()?;
+    let session_exists = database.normalized_session_exists("session-1")?;
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(session_exists);
+    assert!(String::from_utf8(output.stdout)?.contains("Rebuilt"));
+
+    Ok(())
+}
+
+#[test]
 fn help_lists_new_commands() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
 
