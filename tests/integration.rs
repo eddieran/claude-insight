@@ -473,13 +473,12 @@ fn build_transcript_fixture_stream(
         None,
     )?);
 
-    Ok(base
-        .iter()
+    base.iter()
         .cycle()
         .take(count)
         .enumerate()
         .map(|(index, line)| rewrite_transcript_line(line, session_id, None, index))
-        .collect::<Result<Vec<_>, _>>()?)
+        .collect::<Result<Vec<_>, _>>()
 }
 
 fn rewrite_transcript_fixture(

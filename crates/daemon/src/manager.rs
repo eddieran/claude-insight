@@ -616,10 +616,12 @@ mod tests {
         wait_for_health(report.capture_addr).await?;
 
         let mut second = workspace.manager();
-        let error = second
-            .start()
-            .await
-            .expect_err("second daemon start should fail");
+        let error = match second.start().await {
+            Ok(_) => {
+                return Err(std::io::Error::other("second daemon start should fail").into());
+            }
+            Err(error) => error,
+        };
 
         assert!(matches!(
             error,
