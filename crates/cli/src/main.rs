@@ -3,6 +3,7 @@
 use std::{
     error::Error,
     fs, io,
+    net::{SocketAddr, TcpStream},
     path::{Path, PathBuf},
     process::{Command as ProcessCommand, ExitCode, Stdio},
     thread,
@@ -11,8 +12,44 @@ use std::{
 
 use clap::{CommandFactory, Parser, Subcommand};
 use crossterm::style::{Color, Stylize};
+use serde_json::{json, Map, Value};
 
 type CliResult<T = ()> = Result<T, Box<dyn Error>>;
+const CLAUDE_DIR_NAME: &str = ".claude";
+const SETTINGS_FILE_NAME: &str = "settings.json";
+const INSIGHT_HOOK_STATUS: &str = "claude-insight";
+const INSIGHT_HOOK_TIMEOUT_SECS: u64 = 5;
+const DAEMON_READY_TIMEOUT: Duration = Duration::from_secs(30);
+const DAEMON_PROBE_TIMEOUT: Duration = Duration::from_millis(200);
+const HOOK_EVENT_NAMES: &[&str] = &[
+    "ConfigChange",
+    "CwdChanged",
+    "Elicitation",
+    "ElicitationResult",
+    "FileChanged",
+    "InstructionsLoaded",
+    "Notification",
+    "PermissionDenied",
+    "PermissionRequest",
+    "PostCompact",
+    "PostToolUse",
+    "PostToolUseFailure",
+    "PreCompact",
+    "PreToolUse",
+    "SessionEnd",
+    "SessionStart",
+    "Setup",
+    "Stop",
+    "StopFailure",
+    "SubagentStart",
+    "SubagentStop",
+    "TaskCompleted",
+    "TaskCreated",
+    "TeammateIdle",
+    "UserPromptSubmit",
+    "WorktreeCreate",
+    "WorktreeRemove",
+];
 
 #[derive(Debug, Parser)]
 #[command(
@@ -27,7 +64,14 @@ struct Cli {
 #[derive(Debug, Clone, Subcommand)]
 enum Command {
     /// Install hooks and prepare local storage.
-    Init,
+    Init {
+        /// Install hooks in ~/.claude/settings.json instead of the current project.
+        #[arg(long)]
+        global: bool,
+        /// Enable full prompt and tool content capture in Claude settings.
+        #[arg(long)]
+        capture_content: bool,
+    },
     /// Run the daemon in the foreground.
     Serve,
     /// Show recent sessions or a colored event timeline for one session.
@@ -88,7 +132,10 @@ async fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> CliResult {
     match cli.command {
-        Some(Command::Init) => handle_init(),
+        Some(Command::Init {
+            global,
+            capture_content,
+        }) => handle_init(global, capture_content).await,
         Some(Command::Serve) => handle_serve().await,
         Some(Command::Trace { session_id, limit }) => handle_trace(session_id.as_deref(), limit),
         Some(Command::Search { query, limit }) => handle_search(&query, limit),
@@ -104,14 +151,40 @@ async fn run(cli: Cli) -> CliResult {
     }
 }
 
-fn handle_init() -> CliResult {
-    let db_path = claude_insight_storage::Database::default_path()?;
-    let tui = claude_insight_tui::TuiStub::new("Claude Insight");
-    let title = tui.title_line().to_string();
+async fn handle_init(global: bool, capture_content: bool) -> CliResult {
+    let settings_path = settings_path(global)?;
+    let install_report = install_hooks(&settings_path, capture_content)?;
+    let daemon_report = daemon_start().await?;
+    let status_label = if daemon_report.already_running {
+        "status=running"
+    } else {
+        "status=started"
+    };
 
-    println!("{} {}", "Initialized".green().bold(), title.white().bold());
-    println!("database: {}", db_path.display().to_string().cyan());
-    println!("storage: {}", "sqlite".dark_grey());
+    println!(
+        "{} {}",
+        "Initialized".green().bold(),
+        "Claude Insight".white().bold()
+    );
+    println!("settings: {}", settings_path.display().to_string().cyan());
+    println!(
+        "hooks: {}",
+        format!("{} events configured", install_report.configured_events).cyan()
+    );
+    println!(
+        "capture: {}",
+        if install_report.capture_content_enabled {
+            "full content".green().to_string()
+        } else {
+            "metadata only".dark_grey().to_string()
+        }
+    );
+    println!(
+        "daemon: {} {} {}",
+        status_label.green().bold(),
+        format!("port={}", daemon_report.capture_addr.port()).cyan(),
+        format!("pid={}", daemon_report.pid).dark_grey()
+    );
 
     Ok(())
 }
@@ -241,7 +314,11 @@ fn handle_gc(days: u32) -> CliResult {
 
 fn handle_normalize(rebuild: bool) -> CliResult {
     let database = claude_insight_storage::Database::open_default()?;
-    let report = database.normalize()?;
+    let report = if rebuild {
+        database.rebuild()?
+    } else {
+        database.normalize()?
+    };
 
     println!(
         "{} {} raw events (last raw event id: {}).",
@@ -259,18 +336,49 @@ fn handle_normalize(rebuild: bool) -> CliResult {
 
 async fn handle_daemon(command: DaemonCommand) -> CliResult {
     match command {
-        DaemonCommand::Start => daemon_start().await,
+        DaemonCommand::Start => {
+            let report = daemon_start().await?;
+            println!(
+                "{} {} {}",
+                if report.already_running {
+                    "Daemon already running.".yellow().bold()
+                } else {
+                    "Daemon started.".green().bold()
+                },
+                format!("port={}", report.capture_addr.port()).cyan(),
+                format!("pid={}", report.pid).dark_grey()
+            );
+            Ok(())
+        }
         DaemonCommand::Stop => daemon_stop(),
     }
 }
 
-async fn daemon_start() -> CliResult {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HookInstallReport {
+    configured_events: usize,
+    capture_content_enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DaemonLaunchReport {
+    capture_addr: SocketAddr,
+    pid: u32,
+    already_running: bool,
+}
+
+async fn daemon_start() -> CliResult<DaemonLaunchReport> {
     let pid_path = pid_file_path()?;
+    let capture_addr = daemon_capture_addr();
 
     if let Ok(pid) = read_pid_file(&pid_path) {
         if is_process_running(pid)? {
-            println!("{} {}", "Daemon already running with pid".yellow(), pid);
-            return Ok(());
+            wait_for_daemon_ready(capture_addr)?;
+            return Ok(DaemonLaunchReport {
+                capture_addr,
+                pid,
+                already_running: true,
+            });
         }
 
         let _ = fs::remove_file(&pid_path);
@@ -292,8 +400,12 @@ async fn daemon_start() -> CliResult {
 
         if let Ok(pid) = read_pid_file(&pid_path) {
             if is_process_running(pid)? {
-                println!("{} {}", "Daemon started with pid".green().bold(), pid);
-                return Ok(());
+                wait_for_daemon_ready(capture_addr)?;
+                return Ok(DaemonLaunchReport {
+                    capture_addr,
+                    pid,
+                    already_running: false,
+                });
             }
         }
 
@@ -343,6 +455,56 @@ fn app_dir() -> CliResult<PathBuf> {
     Ok(claude_insight_storage::Database::default_dir()?)
 }
 
+fn settings_path(global: bool) -> CliResult<PathBuf> {
+    if global {
+        return Ok(user_home_dir()?.join(CLAUDE_DIR_NAME).join(SETTINGS_FILE_NAME));
+    }
+
+    Ok(std::env::current_dir()?
+        .join(CLAUDE_DIR_NAME)
+        .join(SETTINGS_FILE_NAME))
+}
+
+fn install_hooks(settings_path: &Path, capture_content: bool) -> CliResult<HookInstallReport> {
+    let mut settings = load_settings(settings_path)?;
+    let hook_url = hook_url();
+    let capture_content_enabled = {
+        let root = ensure_object(&mut settings, "settings.json root")?;
+        let hooks_value = root
+            .entry("hooks".to_string())
+            .or_insert_with(|| Value::Object(Map::new()));
+        let hooks = ensure_object(hooks_value, "`hooks`")?;
+
+        for event_name in HOOK_EVENT_NAMES {
+            let entries = hooks
+                .entry((*event_name).to_string())
+                .or_insert_with(|| Value::Array(Vec::new()));
+            let entry_list = ensure_array(entries, event_name)?;
+            if !event_has_insight_hook(entry_list, &hook_url) {
+                entry_list.push(insight_hook_group(&hook_url));
+            }
+        }
+
+        if capture_content {
+            root.insert("capture_content".to_string(), Value::Bool(true));
+        }
+
+        root.get("capture_content")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    };
+
+    if let Some(parent) = settings_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(settings_path, format!("{}\n", serde_json::to_string_pretty(&settings)?))?;
+
+    Ok(HookInstallReport {
+        configured_events: HOOK_EVENT_NAMES.len(),
+        capture_content_enabled,
+    })
+}
+
 fn daemon_executable_path() -> CliResult<PathBuf> {
     let current = std::env::current_exe()?;
     let executable_name = if cfg!(windows) {
@@ -369,6 +531,111 @@ fn daemon_executable_path() -> CliResult<PathBuf> {
 
 fn pid_file_path() -> CliResult<PathBuf> {
     Ok(app_dir()?.join("daemon.pid"))
+}
+
+fn user_home_dir() -> CliResult<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+        .ok_or_else(|| "HOME or USERPROFILE must be set".into())
+}
+
+fn load_settings(path: &Path) -> CliResult<Value> {
+    match fs::read_to_string(path) {
+        Ok(contents) => Ok(serde_json::from_str(&contents)?),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            Ok(Value::Object(Map::new()))
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn ensure_object<'a>(
+    value: &'a mut Value,
+    context: &str,
+) -> CliResult<&'a mut Map<String, Value>> {
+    value
+        .as_object_mut()
+        .ok_or_else(|| format!("{context} must be a JSON object").into())
+}
+
+fn ensure_array<'a>(value: &'a mut Value, context: &str) -> CliResult<&'a mut Vec<Value>> {
+    value
+        .as_array_mut()
+        .ok_or_else(|| format!("{context} must be a JSON array").into())
+}
+
+fn event_has_insight_hook(entries: &[Value], hook_url: &str) -> bool {
+    entries
+        .iter()
+        .filter_map(Value::as_object)
+        .filter_map(|entry| entry.get("hooks"))
+        .filter_map(Value::as_array)
+        .flat_map(|hooks| hooks.iter())
+        .any(|hook| hook_matches_insight(hook, hook_url))
+}
+
+fn hook_matches_insight(hook: &Value, hook_url: &str) -> bool {
+    let Some(hook) = hook.as_object() else {
+        return false;
+    };
+
+    hook.get("type").and_then(Value::as_str) == Some("http")
+        && hook.get("url").and_then(Value::as_str) == Some(hook_url)
+}
+
+fn insight_hook_group(hook_url: &str) -> Value {
+    json!({
+        "hooks": [
+            {
+                "type": "http",
+                "url": hook_url,
+                "timeout": INSIGHT_HOOK_TIMEOUT_SECS,
+                "statusMessage": INSIGHT_HOOK_STATUS,
+            }
+        ]
+    })
+}
+
+fn hook_url() -> String {
+    format!("http://127.0.0.1:{}/hooks", daemon_capture_addr().port())
+}
+
+fn daemon_capture_addr() -> SocketAddr {
+    claude_insight_daemon::DaemonConfig::default().capture_addr
+}
+
+fn wait_for_daemon_ready(capture_addr: SocketAddr) -> CliResult {
+    let started_at = std::time::Instant::now();
+
+    while started_at.elapsed() < DAEMON_READY_TIMEOUT {
+        if daemon_is_ready(capture_addr)? {
+            return Ok(());
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    Err(format!("timed out waiting for daemon at {capture_addr}").into())
+}
+
+fn daemon_is_ready(capture_addr: SocketAddr) -> io::Result<bool> {
+    match TcpStream::connect_timeout(&capture_addr, DAEMON_PROBE_TIMEOUT) {
+        Ok(stream) => {
+            let _ = stream.shutdown(std::net::Shutdown::Both);
+            Ok(true)
+        }
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::ConnectionRefused
+                    | io::ErrorKind::TimedOut
+                    | io::ErrorKind::AddrNotAvailable
+            ) =>
+        {
+            Ok(false)
+        }
+        Err(error) => Err(error),
+    }
 }
 
 fn database_path_label() -> CliResult<String> {

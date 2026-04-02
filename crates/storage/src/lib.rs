@@ -76,6 +76,10 @@ impl Database {
         normalizer::normalize(self)
     }
 
+    pub fn rebuild(&self) -> rusqlite::Result<NormalizationStats> {
+        normalizer::rebuild(self)
+    }
+
     pub fn normalization_watermark(&self) -> rusqlite::Result<i64> {
         self.conn.query_row(
             "SELECT last_raw_event_id
@@ -86,15 +90,6 @@ impl Database {
         )
     }
 
-    pub fn delete_raw_events_before(&self, cutoff_ts: &str) -> rusqlite::Result<usize> {
-        let deleted = self.conn.execute(
-            "DELETE FROM raw_events
-             WHERE ts < ?1",
-            [cutoff_ts],
-        )?;
-        self.rebuild_fts_index()?;
-        Ok(deleted)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
