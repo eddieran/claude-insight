@@ -40,6 +40,29 @@ pub(crate) fn normalize(database: &Database) -> rusqlite::Result<NormalizationSt
     })
 }
 
+pub(crate) fn rebuild(database: &Database) -> rusqlite::Result<NormalizationStats> {
+    let tx = database.conn.unchecked_transaction()?;
+
+    tx.execute_batch(
+        "
+        DELETE FROM event_links;
+        DELETE FROM permission_decisions;
+        DELETE FROM instruction_loads;
+        DELETE FROM config_snapshots;
+        DELETE FROM tool_invocations;
+        DELETE FROM prompts;
+        DELETE FROM sessions;
+        UPDATE normalization_state
+        SET last_raw_event_id = 0
+        WHERE id = 1;
+        ",
+    )?;
+
+    tx.commit()?;
+
+    normalize(database)
+}
+
 fn read_watermark(tx: &Transaction<'_>) -> rusqlite::Result<i64> {
     tx.query_row(
         "SELECT last_raw_event_id
@@ -162,9 +185,39 @@ fn normalize_hook_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Res
 }
 
 fn parse_hook_event(event: &RawEvent) -> rusqlite::Result<HookEvent> {
-    serde_json::from_str(&event.payload_json).map_err(|error| {
+    let mut value =
+        serde_json::from_str::<serde_json::Value>(&event.payload_json).map_err(|error| {
+            rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(format!(
+                "failed to parse hook payload for {} (raw_event_id={}): {error}",
+                event.event_type, event.id
+            ))))
+        })?;
+
+    if let Some(object) = value.as_object_mut() {
+        object
+            .entry("hook_event_name")
+            .or_insert_with(|| serde_json::Value::String(event.event_type.clone()));
+        object.entry("transcript_path").or_insert_with(|| "".into());
+        object.entry("cwd").or_insert_with(|| "".into());
+        object
+            .entry("permission_mode")
+            .or_insert(serde_json::Value::Null);
+
+        if let Some(session_id) = &event.session_id {
+            object
+                .entry("session_id")
+                .or_insert_with(|| serde_json::Value::String(session_id.clone()));
+        }
+        if let Some(agent_id) = &event.agent_id {
+            object
+                .entry("agent_id")
+                .or_insert_with(|| serde_json::Value::String(agent_id.clone()));
+        }
+    }
+
+    serde_json::from_value(value).map_err(|error| {
         rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(format!(
-            "failed to parse hook payload for {} (raw_event_id={}): {error}",
+            "failed to deserialize hook payload for {} (raw_event_id={}): {error}",
             event.event_type, event.id
         ))))
     })

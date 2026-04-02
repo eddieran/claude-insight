@@ -8,6 +8,14 @@ pub struct GcReport {
 }
 
 impl Database {
+    pub fn delete_raw_events_before(&self, cutoff_ts: &str) -> rusqlite::Result<usize> {
+        self.conn.execute(
+            "DELETE FROM raw_events
+             WHERE ts < ?1",
+            [cutoff_ts],
+        )
+    }
+
     pub fn gc_raw_events(&self, retention_days: u32) -> rusqlite::Result<GcReport> {
         let modifier = format!("-{retention_days} days");
         let deleted_events = self.conn.execute(
@@ -39,6 +47,7 @@ impl Database {
         self.conn.execute_batch(
             "
             DROP TRIGGER IF EXISTS raw_events_ai;
+            DROP TRIGGER IF EXISTS raw_events_ad;
             DROP TABLE IF EXISTS events_fts;
 
             CREATE VIRTUAL TABLE events_fts USING fts5(
@@ -62,6 +71,20 @@ impl Database {
                 json_extract(new.payload_json, '$.file_path'),
                 json_extract(new.payload_json, '$.prompt'),
                 new.payload_json
+              );
+            END;
+
+            CREATE TRIGGER raw_events_ad AFTER DELETE ON raw_events BEGIN
+              INSERT INTO events_fts(events_fts, rowid, session_id, event_type, tool_name, file_path, prompt_text, content)
+              VALUES (
+                'delete',
+                old.id,
+                old.session_id,
+                old.event_type,
+                json_extract(old.payload_json, '$.tool_name'),
+                json_extract(old.payload_json, '$.file_path'),
+                json_extract(old.payload_json, '$.prompt'),
+                old.payload_json
               );
             END;
             ",
