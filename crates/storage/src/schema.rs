@@ -1,4 +1,4 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, OpenFlags};
 use std::path::Path;
 
 const SCHEMA_SQL: &str = r#"
@@ -149,11 +149,37 @@ END;
 pub(crate) fn configure_connection(connection: &Connection, path: &Path) -> rusqlite::Result<()> {
     connection.pragma_update(None, "foreign_keys", true)?;
 
-    if path != Path::new(":memory:") {
+    if !is_in_memory_database_path(path) {
         connection.pragma_update(None, "journal_mode", "WAL")?;
     }
 
     Ok(())
+}
+
+pub(crate) fn open_connection(path: &Path) -> rusqlite::Result<Connection> {
+    let mut flags = OpenFlags::SQLITE_OPEN_READ_WRITE
+        | OpenFlags::SQLITE_OPEN_CREATE
+        | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+
+    if is_sqlite_uri(path) {
+        flags |= OpenFlags::SQLITE_OPEN_URI;
+    }
+
+    Connection::open_with_flags(path, flags)
+}
+
+pub(crate) fn should_create_parent_dir(path: &Path) -> bool {
+    !is_in_memory_database_path(path) && !is_sqlite_uri(path)
+}
+
+pub(crate) fn is_in_memory_database_path(path: &Path) -> bool {
+    let path = path.to_string_lossy();
+
+    path == ":memory:" || (path.starts_with("file:") && path.contains("mode=memory"))
+}
+
+fn is_sqlite_uri(path: &Path) -> bool {
+    path.to_string_lossy().starts_with("file:")
 }
 
 pub(crate) fn create_tables(connection: &Connection) -> rusqlite::Result<()> {
