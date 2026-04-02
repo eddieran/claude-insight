@@ -6,6 +6,7 @@ pub mod replay;
 pub mod session_list;
 pub mod transcript;
 pub mod widgets;
+pub mod wizard;
 
 pub const CRATE_NAME: &str = "claude-insight-tui";
 
@@ -25,6 +26,9 @@ pub use widgets::{
     progress_bar::ProgressBar,
     sparkline::compute_sparkline_data,
     spinner::BrailleSpinner,
+};
+pub use wizard::{
+    render_wizard_step1, HookInstallTarget, WizardCommand, WizardStep, WizardViewState,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
