@@ -10,6 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
+description = "Local observability and audit tooling for Claude Code sessions."
 edition = "2021"
 license = "MIT"
 version = "0.1.0"
@@ -29,7 +30,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 claude-insight-capture = { package = "capture", path = "crates/capture" }
-claude-insight-daemon = { path = "crates/daemon" }
+claude-insight-daemon = { package = "daemon", path = "crates/daemon" }
 claude-insight-storage = { package = "storage", path = "crates/storage" }
 claude-insight-tui = { path = "crates/tui", package = "tui" }
 claude-insight-types = { path = "crates/types", package = "types" }

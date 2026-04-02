@@ -8,6 +8,18 @@ pub struct GcReport {
 }
 
 impl Database {
+    pub fn delete_raw_events_before(&self, ts: &str) -> rusqlite::Result<usize> {
+        let deleted = self.conn.execute(
+            "DELETE FROM raw_events
+             WHERE ts < ?1",
+            [ts],
+        )?;
+
+        self.rebuild_fts_index()?;
+
+        Ok(deleted)
+    }
+
     pub fn gc_raw_events(&self, retention_days: u32) -> rusqlite::Result<GcReport> {
         let modifier = format!("-{retention_days} days");
         let deleted_events = self.conn.execute(
