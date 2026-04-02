@@ -1,0 +1,14 @@
+{
+  "cwd": "/workspace/claude-insight",
+  "error": "command exited with status 101",
+  "hook_event_name": "PostToolUseFailure",
+  "is_interrupt": false,
+  "permission_mode": "acceptEdits",
+  "session_id": "11111111-1111-4111-8111-111111111111",
+  "tool_input": {
+    "command": "cargo test --workspace"
+  },
+  "tool_name": "Bash",
+  "tool_use_id": "toolu_01MOT115fixture",
+  "transcript_path": "/workspace/.claude/projects/claude-insight/11111111-1111-4111-8111-111111111111.jsonl"
+}

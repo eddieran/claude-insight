@@ -1,0 +1,17 @@
+{
+  "cwd": "/workspace/claude-insight",
+  "hook_event_name": "PermissionRequest",
+  "permission_mode": "acceptEdits",
+  "permission_suggestions": [
+    {
+      "label": "Allow git status in this project",
+      "rule": "Bash(git status:*)"
+    }
+  ],
+  "session_id": "11111111-1111-4111-8111-111111111111",
+  "tool_input": {
+    "command": "git status --short"
+  },
+  "tool_name": "Bash",
+  "transcript_path": "/workspace/.claude/projects/claude-insight/11111111-1111-4111-8111-111111111111.jsonl"
+}

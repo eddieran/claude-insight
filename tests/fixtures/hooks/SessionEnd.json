@@ -1,0 +1,7 @@
+{
+  "cwd": "/workspace/claude-insight",
+  "hook_event_name": "SessionEnd",
+  "reason": "prompt_input_exit",
+  "session_id": "11111111-1111-4111-8111-111111111111",
+  "transcript_path": "/workspace/.claude/projects/claude-insight/11111111-1111-4111-8111-111111111111.jsonl"
+}

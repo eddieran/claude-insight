@@ -1,0 +1,9 @@
+{
+  "cwd": "/workspace/claude-insight",
+  "event": "change",
+  "file_path": "/workspace/claude-insight/docs/DESIGN.md",
+  "hook_event_name": "FileChanged",
+  "permission_mode": "acceptEdits",
+  "session_id": "11111111-1111-4111-8111-111111111111",
+  "transcript_path": "/workspace/.claude/projects/claude-insight/11111111-1111-4111-8111-111111111111.jsonl"
+}
