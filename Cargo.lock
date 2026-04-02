@@ -253,8 +253,10 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "notify",
+ "rusqlite",
  "serde",
  "serde_json",
+ "storage",
  "tokio",
  "tracing",
  "types",

@@ -1,8 +1,12 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
+mod transcript_tailer;
+
 use axum::{http::StatusCode, routing::post, Router};
 
 pub const CRATE_NAME: &str = "claude-insight-capture";
+
+pub use transcript_tailer::{TranscriptTailer, TranscriptTailerConfig, TranscriptTailerError};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CaptureStub {
