@@ -54,7 +54,8 @@ const HOOK_EVENT_NAMES: &[&str] = &[
 #[derive(Debug, Parser)]
 #[command(
     name = "claude-insight",
-    about = "Observe Claude Code sessions from the terminal"
+    about = "Observe Claude Code sessions from the terminal",
+    before_help = claude_insight_tui::ASCII_BANNER
 )]
 struct Cli {
     #[command(subcommand)]
@@ -152,6 +153,7 @@ async fn run(cli: Cli) -> CliResult {
 }
 
 async fn handle_init(global: bool, capture_content: bool) -> CliResult {
+    print!("{}", claude_insight_tui::ansi_banner());
     let settings_path = settings_path(global)?;
     let install_report = install_hooks(&settings_path, capture_content)?;
     let daemon_report = daemon_start().await?;
