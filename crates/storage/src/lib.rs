@@ -1,15 +1,19 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
 mod fts;
+mod maintenance;
 mod normalizer;
 mod raw_store;
 mod schema;
+mod sessions;
 
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
+pub use maintenance::GcReport;
 pub use normalizer::NormalizationStats;
 pub use raw_store::{NewRawEvent, RawEvent, RawEventQuery};
+pub use sessions::SessionSummary;
 
 pub const CRATE_NAME: &str = "claude-insight-storage";
 const DEFAULT_DATABASE_DIR: &str = ".claude-insight";
@@ -43,15 +47,21 @@ impl Database {
         Ok(database)
     }
 
-    pub fn default_path() -> rusqlite::Result<PathBuf> {
+    pub fn default_dir() -> rusqlite::Result<PathBuf> {
+        if let Some(home) = std::env::var_os("CLAUDE_INSIGHT_HOME") {
+            return Ok(PathBuf::from(home).join(DEFAULT_DATABASE_DIR));
+        }
+
         match std::env::var_os("HOME") {
-            Some(home) => Ok(PathBuf::from(home)
-                .join(DEFAULT_DATABASE_DIR)
-                .join(DEFAULT_DATABASE_FILE)),
+            Some(home) => Ok(PathBuf::from(home).join(DEFAULT_DATABASE_DIR)),
             None => Err(rusqlite::Error::InvalidPath(PathBuf::from(
-                "~/.claude-insight/insight.db",
+                "~/.claude-insight",
             ))),
         }
+    }
+
+    pub fn default_path() -> rusqlite::Result<PathBuf> {
+        Ok(Self::default_dir()?.join(DEFAULT_DATABASE_FILE))
     }
 
     pub fn open_default() -> rusqlite::Result<Self> {

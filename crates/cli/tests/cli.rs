@@ -161,8 +161,11 @@ fn normalize_materializes_sessions_table() -> Result<(), Box<dyn std::error::Err
         "SessionStart",
         "2026-04-03T15:00:00Z",
         &serde_json::json!({
+            "hook_event_name": "SessionStart",
+            "session_id": "session-1",
             "source": "startup",
             "cwd": "/workspace/claude-insight",
+            "transcript_path": "/workspace/.claude/projects/claude-insight/session-1.jsonl",
         })
         .to_string(),
     )?;
