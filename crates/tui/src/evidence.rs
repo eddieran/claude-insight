@@ -22,6 +22,7 @@ use syntect::{
 };
 use time::OffsetDateTime;
 
+use crate::causal_chain::CausalChainState;
 use crate::session_list::{
     SessionEvent, ACCENT_AMBER, ACCENT_CYAN, ACCENT_GREEN, ACCENT_RED, BACKGROUND, SURFACE,
     TEXT_DIM, TEXT_PRIMARY,
@@ -33,6 +34,7 @@ pub const ACCENT_PURPLE: ratatui::style::Color = ratatui::style::Color::Rgb(0xbc
 pub struct LinkedEvent {
     pub event_type: String,
     pub timestamp: OffsetDateTime,
+    pub event_index: Option<usize>,
 }
 
 impl LinkedEvent {
@@ -40,7 +42,13 @@ impl LinkedEvent {
         Self {
             event_type: event_type.into(),
             timestamp,
+            event_index: None,
         }
+    }
+
+    pub fn with_event_index(mut self, event_index: usize) -> Self {
+        self.event_index = Some(event_index);
+        self
     }
 }
 
@@ -187,8 +195,9 @@ pub fn render(
     area: ratatui::layout::Rect,
     event: Option<&SessionEvent>,
     pane: &EvidencePaneState,
+    causal_chain: Option<&CausalChainState>,
 ) {
-    let lines = build_lines(event, pane);
+    let lines = build_lines(event, pane, causal_chain);
     frame.render_widget(
         Paragraph::new(lines)
             .style(Style::new().bg(SURFACE).fg(TEXT_PRIMARY))
@@ -228,7 +237,11 @@ pub fn open_event_file_path(event: &SessionEvent) -> io::Result<()> {
         .map_err(|error| io::Error::other(format!("failed to spawn editor: {error}")))
 }
 
-fn build_lines(event: Option<&SessionEvent>, pane: &EvidencePaneState) -> Vec<Line<'static>> {
+fn build_lines(
+    event: Option<&SessionEvent>,
+    pane: &EvidencePaneState,
+    causal_chain: Option<&CausalChainState>,
+) -> Vec<Line<'static>> {
     let Some(event) = event else {
         return vec![Line::from(Span::styled(
             "Select an event to see details",
@@ -261,6 +274,7 @@ fn build_lines(event: Option<&SessionEvent>, pane: &EvidencePaneState) -> Vec<Li
         lines.as_mut(),
         &event.evidence().linked_events,
         pane.show_linked_events,
+        causal_chain,
     );
     append_raw_json(lines.as_mut(), &event.evidence().raw_json);
 
@@ -313,7 +327,12 @@ fn append_instruction_provenance(
     lines.push(Line::from(""));
 }
 
-fn append_linked_events(lines: &mut Vec<Line<'static>>, linked_events: &[LinkedEvent], show: bool) {
+fn append_linked_events(
+    lines: &mut Vec<Line<'static>>,
+    linked_events: &[LinkedEvent],
+    show: bool,
+    causal_chain: Option<&CausalChainState>,
+) {
     if linked_events.is_empty() && show {
         return;
     }
@@ -334,14 +353,18 @@ fn append_linked_events(lines: &mut Vec<Line<'static>>, linked_events: &[LinkedE
         } else {
             "├──"
         };
-        lines.push(Line::from(vec![
+        let line = Line::from(vec![
             Span::styled(format!("{marker} "), Style::new().fg(TEXT_DIM)),
             Span::styled(event.event_type.clone(), Style::new().fg(TEXT_PRIMARY)),
             Span::styled(
                 format!(" ({})", format_tree_time(event.timestamp)),
                 Style::new().fg(TEXT_DIM),
             ),
-        ]));
+        ]);
+        let relation = event.event_index.and_then(|event_index| {
+            causal_chain.and_then(|chain| chain.highlight_for(event_index))
+        });
+        lines.push(apply_line_highlight(line, relation));
     }
     lines.push(Line::from(""));
 }
@@ -619,13 +642,34 @@ fn styled_slice(
     Span::styled(line[start..end].to_string(), Style::new().fg(color))
 }
 
+fn apply_line_highlight(
+    line: Line<'static>,
+    relation: Option<crate::causal_chain::CausalRelation>,
+) -> Line<'static> {
+    let Some(relation) = relation else {
+        return line;
+    };
+
+    Line::from(
+        line.spans
+            .into_iter()
+            .map(|span| {
+                let style = relation.apply_to(span.style);
+                Span::styled(span.content, style)
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::causal_chain::{CausalChainState, CausalLink, CausalRelation};
+    use crate::session_list::SessionEventKind;
 
     #[test]
     fn evidence_empty_state_is_dim() {
-        let lines = build_lines(None, &EvidencePaneState::default());
+        let lines = build_lines(None, &EvidencePaneState::default(), None);
 
         assert_eq!(lines[0].to_string(), "Select an event to see details");
         assert_eq!(lines[0].spans[0].style.fg, Some(TEXT_DIM));
@@ -668,16 +712,18 @@ mod tests {
     #[test]
     fn evidence_linked_events_tree_uses_unicode_markers() {
         let event = SessionEvent::named(
-            crate::session_list::SessionEventKind::Tool,
+            SessionEventKind::Tool,
             "PostToolUse",
             parse_timestamp("2026-04-03T14:32:05Z"),
         )
         .with_linked_events(vec![
-            LinkedEvent::new("PreToolUse", parse_timestamp("2026-04-03T14:32:03Z")),
-            LinkedEvent::new("PostToolUse", parse_timestamp("2026-04-03T14:32:05Z")),
+            LinkedEvent::new("PreToolUse", parse_timestamp("2026-04-03T14:32:03Z"))
+                .with_event_index(0),
+            LinkedEvent::new("PostToolUse", parse_timestamp("2026-04-03T14:32:05Z"))
+                .with_event_index(1),
         ]);
 
-        let lines = build_lines(Some(&event), &EvidencePaneState::default());
+        let lines = build_lines(Some(&event), &EvidencePaneState::default(), None);
         let rendered = lines
             .iter()
             .map(Line::to_string)
@@ -686,6 +732,66 @@ mod tests {
 
         assert!(rendered.contains("├── PreToolUse (14:32:03)"));
         assert!(rendered.contains("└── PostToolUse (14:32:05)"));
+    }
+
+    #[test]
+    fn evidence_causal_chain_highlights_all_linked_events() {
+        let timestamps = [
+            parse_timestamp("2026-04-03T01:06:40Z"),
+            parse_timestamp("2026-04-03T01:06:50Z"),
+            parse_timestamp("2026-04-03T01:07:00Z"),
+            parse_timestamp("2026-04-03T01:07:10Z"),
+            parse_timestamp("2026-04-03T01:07:20Z"),
+        ];
+        let event = SessionEvent::named(SessionEventKind::Tool, "PreToolUse", timestamps[2])
+            .with_raw_event_id(3)
+            .with_linked_events(vec![
+                LinkedEvent::new("UserPromptSubmit", timestamps[0]).with_event_index(0),
+                LinkedEvent::new("InstructionsLoaded", timestamps[1]).with_event_index(1),
+                LinkedEvent::new("PreToolUse", timestamps[2]).with_event_index(2),
+                LinkedEvent::new("PermissionRequest", timestamps[3]).with_event_index(3),
+                LinkedEvent::new("PostToolUse", timestamps[4]).with_event_index(4),
+            ]);
+        let events = vec![
+            SessionEvent::named(
+                SessionEventKind::UserPromptSubmit,
+                "UserPromptSubmit",
+                timestamps[0],
+            )
+            .with_raw_event_id(1),
+            SessionEvent::named(
+                SessionEventKind::InstructionsLoaded,
+                "InstructionsLoaded",
+                timestamps[1],
+            )
+            .with_raw_event_id(2),
+            event.clone(),
+            SessionEvent::named(
+                SessionEventKind::PermissionRequest,
+                "PermissionRequest",
+                timestamps[3],
+            )
+            .with_raw_event_id(4),
+            SessionEvent::named(SessionEventKind::Tool, "PostToolUse", timestamps[4])
+                .with_raw_event_id(5),
+        ];
+        let links = [
+            CausalLink::new(1, 2),
+            CausalLink::new(2, 3),
+            CausalLink::new(3, 4),
+            CausalLink::new(4, 5),
+        ];
+        let mut chain = CausalChainState::activate(2, &events, &links);
+        chain.reveal_all_for_test();
+
+        let lines = build_lines(Some(&event), &EvidencePaneState::default(), Some(&chain));
+        let highlighted = lines
+            .iter()
+            .filter(|line| line.spans.iter().any(|span| span.style.bg.is_some()))
+            .count();
+
+        assert_eq!(highlighted, 5);
+        assert_eq!(chain.highlight_for(2), Some(CausalRelation::Selected));
     }
 
     fn parse_timestamp(input: &str) -> OffsetDateTime {

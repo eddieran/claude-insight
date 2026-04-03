@@ -8,6 +8,8 @@ use ratatui::{
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
+use crate::causal_chain::{CausalChainState, CausalLink};
+use crate::evidence::{self, EvidencePaneState};
 use crate::session_list::{
     SessionEvent, SessionEventKind, SessionListItem, BACKGROUND, BORDER, BORDER_ACTIVE, SURFACE,
     TEXT_DIM, TEXT_PRIMARY,
@@ -70,17 +72,23 @@ pub struct ReplayViewState {
     pub focus: ReplayPane,
     pub selected_event: usize,
     pub evidence_overlay_open: bool,
+    pub evidence: EvidencePaneState,
     pub transcript: ReplayTranscript,
+    pub causal_links: Vec<CausalLink>,
+    pub causal_chain: CausalChainState,
 }
 
 impl ReplayViewState {
     pub fn from_session(session: SessionListItem) -> Self {
         let mut state = Self {
             selected_event: session.event_count().saturating_sub(1),
+            evidence: EvidencePaneState::default(),
             transcript: ReplayTranscript::from_session_events(session.event_count()),
             session,
             focus: ReplayPane::Timeline,
             evidence_overlay_open: false,
+            causal_links: Vec::new(),
+            causal_chain: CausalChainState::default(),
         };
         state.transcript.reveal_selected_event(state.selected_event);
         state
@@ -89,10 +97,13 @@ impl ReplayViewState {
     pub fn with_transcript(session: SessionListItem, transcript: ReplayTranscript) -> Self {
         let mut state = Self {
             selected_event: session.event_count().saturating_sub(1),
+            evidence: EvidencePaneState::default(),
             transcript,
             session,
             focus: ReplayPane::Timeline,
             evidence_overlay_open: false,
+            causal_links: Vec::new(),
+            causal_chain: CausalChainState::default(),
         };
         state.transcript.reveal_selected_event(state.selected_event);
         state
@@ -100,6 +111,15 @@ impl ReplayViewState {
 
     pub fn session_id(&self) -> &str {
         &self.session.session_id
+    }
+
+    pub fn with_causal_links(mut self, causal_links: Vec<CausalLink>) -> Self {
+        self.causal_links = causal_links;
+        self
+    }
+
+    pub fn tick(&mut self, delta: std::time::Duration) {
+        self.causal_chain.tick(delta);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) {
@@ -121,6 +141,7 @@ impl ReplayViewState {
             KeyCode::Char('e') => {
                 let _ = self.transcript.toggle_selected_entry(self.selected_event);
             }
+            KeyCode::Char('c') => self.toggle_causal_chain(),
             _ => {}
         }
     }
@@ -143,6 +164,28 @@ impl ReplayViewState {
         let next = self.selected_event as isize + delta;
         self.selected_event = next.clamp(0, self.session.events.len() as isize - 1) as usize;
         self.transcript.reveal_selected_event(self.selected_event);
+        self.evidence.reset_scroll();
+
+        if self.causal_chain.is_active() {
+            self.activate_causal_chain();
+        }
+    }
+
+    fn toggle_causal_chain(&mut self) {
+        if self.causal_chain.is_active() {
+            self.causal_chain.clear();
+            return;
+        }
+
+        self.activate_causal_chain();
+    }
+
+    fn activate_causal_chain(&mut self) {
+        self.causal_chain = CausalChainState::activate(
+            self.selected_event,
+            &self.session.events,
+            &self.causal_links,
+        );
     }
 }
 
@@ -266,7 +309,10 @@ impl ReplayView {
                     let index = start + offset;
                     let selected_row = index == selected;
                     let marker = if selected_row { "▸" } else { " " };
-                    let style = if selected_row {
+                    let relation = state.causal_chain.highlight_for(index);
+                    let style = if let Some(relation) = relation {
+                        relation.apply_to(Style::new().fg(TEXT_PRIMARY))
+                    } else if selected_row {
                         Style::new().fg(BORDER_ACTIVE).add_modifier(Modifier::BOLD)
                     } else {
                         Style::new().fg(TEXT_PRIMARY)
@@ -300,6 +346,10 @@ impl ReplayView {
             state.focus == ReplayPane::Transcript,
             &state.transcript,
             state.selected_event,
+            state
+                .causal_chain
+                .is_active()
+                .then_some(&state.causal_chain),
         );
     }
 
@@ -310,6 +360,17 @@ impl ReplayView {
         );
         let inner = block.inner(area);
         frame.render_widget(block, area);
+
+        if state.causal_chain.is_active() {
+            evidence::render(
+                frame,
+                inner.inner(Margin::new(1, 0)),
+                state.current_event(),
+                &state.evidence,
+                Some(&state.causal_chain),
+            );
+            return;
+        }
 
         let lines = vec![
             Line::from(Span::styled(
@@ -413,17 +474,11 @@ fn format_timestamp(timestamp: OffsetDateTime) -> String {
 }
 
 fn event_emoji(kind: SessionEventKind) -> &'static str {
-    match kind {
-        SessionEventKind::SessionBoundary => "📋",
-        SessionEventKind::UserPromptSubmit => "💬",
-        SessionEventKind::InstructionsLoaded => "📖",
-        SessionEventKind::Subagent => "🤖",
-        SessionEventKind::Other => "📋",
-        SessionEventKind::Tool => "🔧",
-        SessionEventKind::PermissionRequest => "❓",
-        SessionEventKind::Retry => "🔁",
-        SessionEventKind::PermissionDenied => "🚫",
-        SessionEventKind::PostToolUseFailure | SessionEventKind::StopFailure => "⚠️",
+    let icon = kind.icon();
+    if matches!(kind, SessionEventKind::PermissionRequest) {
+        "❓"
+    } else {
+        icon
     }
 }
 
@@ -572,6 +627,27 @@ mod tests {
     }
 
     #[test]
+    fn replay_causal_chain_toggle_activates_and_clears() {
+        let mut state = sample_state().with_causal_links(vec![
+            CausalLink::new(1, 2),
+            CausalLink::new(2, 3),
+            CausalLink::new(3, 4),
+            CausalLink::new(4, 5),
+            CausalLink::new(5, 6),
+        ]);
+        state.selected_event = 2;
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+
+        assert!(state.causal_chain.is_active());
+        assert_eq!(state.causal_chain.anchor_index(), Some(2));
+
+        state.handle_key_event(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+
+        assert!(!state.causal_chain.is_active());
+    }
+
+    #[test]
     fn replay_status_bar_uses_available_session_metadata() {
         let state = sample_state();
 
@@ -593,21 +669,27 @@ mod tests {
                 SessionEvent::new(
                     SessionEventKind::Other,
                     parse_timestamp("2026-04-03T01:06:40Z"),
-                ),
+                )
+                .with_raw_event_id(1),
                 SessionEvent::new(
                     SessionEventKind::Other,
                     parse_timestamp("2026-04-03T01:06:50Z"),
-                ),
-                SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:00Z")),
+                )
+                .with_raw_event_id(2),
+                SessionEvent::tool("tool-1", parse_timestamp("2026-04-03T01:07:00Z"))
+                    .with_raw_event_id(3),
                 SessionEvent::new(
                     SessionEventKind::PermissionRequest,
                     parse_timestamp("2026-04-03T01:07:05Z"),
-                ),
-                SessionEvent::tool("tool-2", parse_timestamp("2026-04-03T01:07:07Z")),
+                )
+                .with_raw_event_id(4),
+                SessionEvent::tool("tool-2", parse_timestamp("2026-04-03T01:07:07Z"))
+                    .with_raw_event_id(5),
                 SessionEvent::new(
                     SessionEventKind::PermissionDenied,
                     parse_timestamp("2026-04-03T01:07:10Z"),
-                ),
+                )
+                .with_raw_event_id(6),
             ],
         );
 
