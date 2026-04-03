@@ -26,39 +26,33 @@ jobs:
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: linux-x86_64
-            binary_name: claude-insight
-            install_target: false
-            use_cross: true
+            setup: cargo install cross --locked
+            build: cross build --locked --release --package cli --bin claude-insight --target x86_64-unknown-linux-gnu
           - runner: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact_name: linux-aarch64
-            binary_name: claude-insight
-            install_target: false
-            use_cross: true
+            setup: cargo install cross --locked
+            build: cross build --locked --release --package cli --bin claude-insight --target aarch64-unknown-linux-gnu
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: windows-x86_64
-            binary_name: claude-insight.exe
-            install_target: false
-            use_cross: false
+            setup: ""
+            build: cargo build --locked --release --package cli --bin claude-insight --target x86_64-pc-windows-msvc
           - runner: windows-latest
             target: aarch64-pc-windows-msvc
             artifact_name: windows-aarch64
-            binary_name: claude-insight.exe
-            install_target: true
-            use_cross: false
+            setup: rustup target add aarch64-pc-windows-msvc
+            build: cargo build --locked --release --package cli --bin claude-insight --target aarch64-pc-windows-msvc
           - runner: macos-15-intel
             target: x86_64-apple-darwin
             artifact_name: darwin-x86_64
-            binary_name: claude-insight
-            install_target: false
-            use_cross: false
+            setup: ""
+            build: cargo build --locked --release --package cli --bin claude-insight --target x86_64-apple-darwin
           - runner: macos-15-intel
             target: aarch64-apple-darwin
             artifact_name: darwin-aarch64
-            binary_name: claude-insight
-            install_target: true
-            use_cross: false
+            setup: rustup target add aarch64-apple-darwin
+            build: cargo build --locked --release --package cli --bin claude-insight --target aarch64-apple-darwin
 
     steps:
       - uses: actions/checkout@v4
@@ -67,34 +61,29 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install Rust target
-        if: ${{ !matrix.use_cross && matrix.install_target }}
-        run: rustup target add ${{ matrix.target }}
+      - name: Prepare toolchain
+        if: ${{ matrix.setup != '' }}
+        run: ${{ matrix.setup }}
 
-      - name: Install cross
-        if: ${{ matrix.use_cross }}
-        run: cargo install cross --locked
-
-      - name: Build release binary with cross
-        if: ${{ matrix.use_cross }}
-        run: cross build --locked --release --package cli --bin ${{ env.BIN_NAME }} --target ${{ matrix.target }}
-
-      - name: Build release binary with cargo
-        if: ${{ !matrix.use_cross }}
-        run: cargo build --locked --release --package cli --bin ${{ env.BIN_NAME }} --target ${{ matrix.target }}
+      - name: Build release binary
+        run: ${{ matrix.build }}
 
       - name: Stage build artifact
         shell: bash
         run: |
           set -euo pipefail
+          binary_name="${BIN_NAME}"
+          if [[ "${{ matrix.target }}" == *-windows-* ]]; then
+            binary_name="${BIN_NAME}.exe"
+          fi
           mkdir -p "dist/${{ matrix.artifact_name }}"
-          cp "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "dist/${{ matrix.artifact_name }}/${{ matrix.binary_name }}"
+          cp "target/${{ matrix.target }}/release/${binary_name}" "dist/${{ matrix.artifact_name }}/${binary_name}"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact_name }}/${{ matrix.binary_name }}
+          path: dist/${{ matrix.artifact_name }}/
           if-no-files-found: error
 
   release:
