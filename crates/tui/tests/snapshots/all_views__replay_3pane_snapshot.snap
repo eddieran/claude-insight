@@ -7,7 +7,7 @@ expression: "render_to_string(180, 50, |frame|\n{ ReplayView::render(frame, fram
 ││   📋 2026-04-03T01:06:40Z                                           ││ USER: Build the transcript pane for this session replay.    ││ event 6                                  ││
 ││   📋 2026-04-03T01:06:50Z                                           ││ CLAUDE: I am rendering a real conversation view with tool   ││ 2026-04-03T01:07:10Z                     ││
 ││   🔧 2026-04-03T01:07:00Z                                           ││         cards and subagent sections.                        ││                                          ││
-││   🛡️ 2026-04-03T01:07:05Z                                           ││ ┌─ Tool: exec_command ───────────────────────────────────── ││ Evidence details land in MOT-131.        ││
+││   ❓ 2026-04-03T01:07:05Z                                           ││ ┌─ Tool: exec_command ───────────────────────────────────── ││ Evidence details land in MOT-131.        ││
 ││   🔧 2026-04-03T01:07:07Z                                           ││ │command: cargo test -p tui -- transcript                 │ ││ Press Tab or 1/2/3 to switch panes.      ││
 ││ ▸ 🚫 2026-04-03T01:07:10Z                                           ││ │→ Compiling tui v0.1.0                                   │ ││ Press Esc to return to the session list. ││
 ││                                                                     ││ │  error[E0004]: SessionEventKind::Retry not covered      │ ││                                          ││

@@ -7,7 +7,7 @@ expression: "render_to_string(120, 40, |frame|\n{ ReplayView::render(frame, fram
 ││   📋 2026-04-03T01:06:40Z                               ││ USER: Build the transcript pane for this session        ││
 ││   📋 2026-04-03T01:06:50Z                               ││       replay.                                           ││
 ││   🔧 2026-04-03T01:07:00Z                               ││ CLAUDE: I am rendering a real conversation view with    ││
-││   🛡️ 2026-04-03T01:07:05Z                               ││         tool cards and subagent sections.               ││
+││   ❓ 2026-04-03T01:07:05Z                               ││         tool cards and subagent sections.               ││
 ││   🔧 2026-04-03T01:07:07Z                               ││ ┌─ Tool: exec_command ───────────────────────────────── ││
 ││ ▸ 🚫 2026-04-03T01:07:10Z                               ││ │command: cargo test -p tui -- transcript             │ ││
 ││                                                         ││ │→ Compiling tui v0.1.0                               │ ││

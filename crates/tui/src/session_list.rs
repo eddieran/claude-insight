@@ -12,7 +12,7 @@ use ratatui::{
 };
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 
-use crate::evidence::EvidenceDetails;
+use crate::evidence::{EvidenceDetails, LinkedEvent};
 use crate::widgets::{
     mood_badge::{compute_mood, render_mood_badge, Mood},
     sparkline::compute_sparkline_data,
@@ -182,10 +182,15 @@ impl SessionEventKind {
     pub fn is_tool_call(self) -> bool {
         matches!(self, Self::Tool)
     }
+
+    pub fn default_event_type(self) -> &'static str {
+        self.event_type()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionEvent {
+    pub raw_event_id: Option<i64>,
     pub kind: SessionEventKind,
     pub event_type: String,
     pub timestamp: OffsetDateTime,
@@ -197,6 +202,7 @@ pub struct SessionEvent {
 impl SessionEvent {
     pub fn new(kind: SessionEventKind, timestamp: OffsetDateTime) -> Self {
         Self {
+            raw_event_id: None,
             kind,
             event_type: kind.event_type().to_string(),
             timestamp,
@@ -208,6 +214,7 @@ impl SessionEvent {
 
     pub fn tool(tool_use_id: impl Into<String>, timestamp: OffsetDateTime) -> Self {
         Self {
+            raw_event_id: None,
             kind: SessionEventKind::Tool,
             event_type: SessionEventKind::Tool.event_type().to_string(),
             timestamp,
@@ -222,21 +229,26 @@ impl SessionEvent {
         event_type: impl Into<String>,
         timestamp: OffsetDateTime,
     ) -> Self {
-        let mut event = Self::new(kind, timestamp);
-        event.event_type = event_type.into();
-        event
+        let event_type = event_type.into();
+        Self {
+            raw_event_id: None,
+            kind,
+            event_type: event_type.clone(),
+            timestamp,
+            tool_use_id: None,
+            label: event_type,
+            evidence: EvidenceDetails::default(),
+        }
     }
 
-    pub fn event_type(&self) -> &str {
-        &self.event_type
+    pub fn with_raw_event_id(mut self, raw_event_id: i64) -> Self {
+        self.raw_event_id = Some(raw_event_id);
+        self
     }
 
-    pub fn kind_icon(&self) -> &'static str {
-        self.kind.icon()
-    }
-
-    pub fn evidence(&self) -> &EvidenceDetails {
-        &self.evidence
+    pub fn with_event_type(mut self, event_type: impl Into<String>) -> Self {
+        self.event_type = event_type.into();
+        self
     }
 
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
@@ -249,9 +261,21 @@ impl SessionEvent {
         self
     }
 
-    pub fn with_linked_events(mut self, linked_events: Vec<crate::evidence::LinkedEvent>) -> Self {
+    pub fn with_linked_events(mut self, linked_events: Vec<LinkedEvent>) -> Self {
         self.evidence.linked_events = linked_events;
         self
+    }
+
+    pub fn event_type(&self) -> &str {
+        &self.event_type
+    }
+
+    pub fn evidence(&self) -> &EvidenceDetails {
+        &self.evidence
+    }
+
+    pub fn kind_icon(&self) -> &'static str {
+        self.kind.icon()
     }
 }
 

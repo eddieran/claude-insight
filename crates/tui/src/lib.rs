@@ -1,6 +1,7 @@
 #![deny(clippy::expect_used, clippy::unwrap_used)]
 
 pub mod app;
+pub mod causal_chain;
 pub mod evidence;
 pub mod replay;
 pub mod session_list;
@@ -12,6 +13,7 @@ pub mod wizard;
 pub const CRATE_NAME: &str = "claude-insight-tui";
 
 pub use app::{App, AppAction, AppView};
+pub use causal_chain::{CausalChainState, CausalLink, CausalRelation};
 pub use evidence::{
     EvidenceDetails, EvidencePaneState, InstructionProvenance, LinkedEvent, PermissionDecisionKind,
     PermissionDetails,

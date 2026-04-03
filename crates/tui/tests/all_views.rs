@@ -90,7 +90,7 @@ fn timeline_selected_snapshot() {
     let session = timeline_session();
 
     insta::assert_snapshot!(render_to_string(40, 30, |frame| {
-        TimelinePane::render(frame, frame.area(), &session, 3, 0, true);
+        TimelinePane::render(frame, frame.area(), &session, 3, 0, true, None);
     }));
 }
 
@@ -107,6 +107,7 @@ fn transcript_tool_expanded_snapshot() {
             true,
             &transcript,
             2,
+            None,
         );
     }));
 }
@@ -123,6 +124,7 @@ fn transcript_missing_data_snapshot() {
             false,
             &transcript,
             0,
+            None,
         );
     }));
 }
@@ -137,6 +139,7 @@ fn evidence_json_snapshot() {
             frame.area(),
             Some(&event),
             &EvidencePaneState::default(),
+            None,
         );
     }));
 }
@@ -144,7 +147,7 @@ fn evidence_json_snapshot() {
 #[test]
 fn evidence_missing_data_snapshot() {
     insta::assert_snapshot!(render_to_string(50, 12, |frame| {
-        evidence::render(frame, frame.area(), None, &EvidencePaneState::default());
+        evidence::render(frame, frame.area(), None, &EvidencePaneState::default(), None);
     }));
 }
 
