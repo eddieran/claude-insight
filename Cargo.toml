@@ -17,6 +17,14 @@ members = [
     "crates/cli",
     "crates/tui",
 ]
+default-members = [
+    "crates/types",
+    "crates/storage",
+    "crates/capture",
+    "crates/daemon",
+    "crates/cli",
+    "crates/tui",
+]
 resolver = "2"
 
 [workspace.package]

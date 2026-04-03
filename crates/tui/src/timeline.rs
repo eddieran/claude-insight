@@ -7,6 +7,7 @@ use ratatui::{
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
+use crate::causal_chain::CausalChainState;
 use crate::session_list::{
     SessionEvent, SessionEventKind, SessionListItem, ACCENT_AMBER, ACCENT_CYAN, ACCENT_GREEN,
     ACCENT_RED, BORDER, BORDER_ACTIVE, SURFACE, TEXT_DIM, TEXT_PRIMARY,
@@ -38,6 +39,7 @@ impl TimelinePane {
         selected_event: usize,
         scroll: usize,
         active: bool,
+        causal_chain: Option<&CausalChainState>,
     ) {
         let block = pane_block(" Timeline [1] ", active);
         let inner = block.inner(area);
@@ -70,7 +72,14 @@ impl TimelinePane {
             session.events[start..end]
                 .iter()
                 .enumerate()
-                .map(|(offset, event)| render_event_line(event, start + offset == selected))
+                .map(|(offset, event)| {
+                    let event_index = start + offset;
+                    render_event_line(
+                        event,
+                        event_index == selected,
+                        causal_chain.and_then(|chain| chain.highlight_for(event_index)),
+                    )
+                })
                 .collect()
         };
 
@@ -115,8 +124,12 @@ pub fn previous_tool_index(events: &[SessionEvent], selected: usize) -> Option<u
         .map(|(index, _)| index)
 }
 
-fn render_event_line(event: &SessionEvent, selected: bool) -> Line<'static> {
-    if selected {
+fn render_event_line(
+    event: &SessionEvent,
+    selected: bool,
+    relation: Option<crate::causal_chain::CausalRelation>,
+) -> Line<'static> {
+    if selected && relation.is_none() {
         return Line::from(vec![
             Span::styled(
                 format_timestamp(event.timestamp),
@@ -144,15 +157,25 @@ fn render_event_line(event: &SessionEvent, selected: bool) -> Line<'static> {
         ]);
     }
 
+    let timestamp_style = relation
+        .map(|relation| relation.apply_to(Style::new().fg(TEXT_DIM)))
+        .unwrap_or_else(|| Style::new().fg(TEXT_DIM));
+    let emoji_style = relation
+        .map(|relation| relation.apply_to(Style::new().fg(event_color(event.kind))))
+        .unwrap_or_else(|| Style::new().fg(event_color(event.kind)));
+    let label_style = relation
+        .map(|relation| relation.apply_to(Style::new().fg(TEXT_PRIMARY)))
+        .unwrap_or_else(|| Style::new().fg(TEXT_PRIMARY));
+    let spacer_style = relation
+        .map(|relation| relation.apply_to(Style::new()))
+        .unwrap_or_default();
+
     Line::from(vec![
-        Span::styled(format_timestamp(event.timestamp), Style::new().fg(TEXT_DIM)),
-        Span::raw(" "),
-        Span::styled(
-            event_emoji(event.kind),
-            Style::new().fg(event_color(event.kind)),
-        ),
-        Span::raw(" "),
-        Span::styled(event.label.clone(), Style::new().fg(TEXT_PRIMARY)),
+        Span::styled(format_timestamp(event.timestamp), timestamp_style),
+        Span::styled(" ", spacer_style),
+        Span::styled(event_emoji(event.kind), emoji_style),
+        Span::styled(" ", spacer_style),
+        Span::styled(event.label.clone(), label_style),
     ])
 }
 
@@ -223,6 +246,67 @@ mod tests {
     }
 
     #[test]
+    fn timeline_causal_chain_styles_all_five_events() {
+        let timestamps = [
+            parse_timestamp("2026-04-03T01:06:55Z"),
+            parse_timestamp("2026-04-03T01:07:00Z"),
+            parse_timestamp("2026-04-03T01:07:05Z"),
+            parse_timestamp("2026-04-03T01:07:10Z"),
+            parse_timestamp("2026-04-03T01:07:15Z"),
+        ];
+        let session = SessionListItem::new(
+            "session-1",
+            "feature/timeline",
+            timestamps[4],
+            0.42,
+            vec![
+                SessionEvent::named(
+                    SessionEventKind::UserPromptSubmit,
+                    "UserPromptSubmit",
+                    timestamps[0],
+                )
+                .with_raw_event_id(1),
+                SessionEvent::named(
+                    SessionEventKind::InstructionsLoaded,
+                    "InstructionsLoaded",
+                    timestamps[1],
+                )
+                .with_raw_event_id(2),
+                SessionEvent::named(SessionEventKind::Tool, "PreToolUse", timestamps[2])
+                    .with_raw_event_id(3),
+                SessionEvent::named(
+                    SessionEventKind::PermissionRequest,
+                    "PermissionRequest",
+                    timestamps[3],
+                )
+                .with_raw_event_id(4),
+                SessionEvent::named(SessionEventKind::Tool, "PostToolUse", timestamps[4])
+                    .with_raw_event_id(5),
+            ],
+        );
+        let links = [
+            crate::causal_chain::CausalLink::new(1, 2),
+            crate::causal_chain::CausalLink::new(2, 3),
+            crate::causal_chain::CausalLink::new(3, 4),
+            crate::causal_chain::CausalLink::new(4, 5),
+        ];
+        let mut chain = crate::causal_chain::CausalChainState::activate(2, &session.events, &links);
+        chain.reveal_all_for_test();
+
+        for index in 0..session.events.len() {
+            let line = render_event_line(
+                &session.events[index],
+                index == 2,
+                chain.highlight_for(index),
+            );
+            assert!(
+                line.spans.iter().any(|span| span.style.bg.is_some()),
+                "event {index} should have a causal highlight background"
+            );
+        }
+    }
+
+    #[test]
     fn timeline_render_includes_label_and_activity_sparkline() {
         let mut backend = TestBackend::new(80, 8);
         let terminal = Terminal::new(backend);
@@ -233,7 +317,7 @@ mod tests {
         let session = sample_session();
 
         let draw_result = terminal.draw(|frame| {
-            TimelinePane::render(frame, frame.area(), &session, 3, 0, true);
+            TimelinePane::render(frame, frame.area(), &session, 3, 0, true, None);
         });
         if let Err(error) = draw_result {
             panic!("draw failed: {error}");

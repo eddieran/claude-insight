@@ -9,6 +9,7 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
+use crate::causal_chain::CausalChainState;
 use crate::session_list::{
     ACCENT_AMBER, ACCENT_CYAN, BACKGROUND, BORDER, SURFACE, TEXT_DIM, TEXT_PRIMARY,
 };
@@ -89,7 +90,12 @@ impl ReplayTranscript {
         self.collapsed_subagents.contains(&section_id)
     }
 
-    pub fn build_lines(&self, content_width: u16, selected_event: usize) -> TranscriptLayout {
+    pub fn build_lines(
+        &self,
+        content_width: u16,
+        selected_event: usize,
+        causal_chain: Option<&CausalChainState>,
+    ) -> TranscriptLayout {
         if self.entries.is_empty() {
             return TranscriptLayout {
                 lines: vec![Line::from(Span::styled(
@@ -136,7 +142,12 @@ impl ReplayTranscript {
                 ),
             };
 
-            lines.extend(entry_lines);
+            let relation = causal_chain.and_then(|chain| chain.highlight_for(entry.event_index));
+            lines.extend(
+                entry_lines
+                    .into_iter()
+                    .map(|line| apply_line_highlight(line, relation)),
+            );
         }
 
         TranscriptLayout {
@@ -322,6 +333,7 @@ pub fn render_transcript_pane(
     active: bool,
     transcript: &ReplayTranscript,
     selected_event: usize,
+    causal_chain: Option<&CausalChainState>,
 ) {
     let block = Block::default()
         .title(Line::from(title).bold())
@@ -332,7 +344,7 @@ pub fn render_transcript_pane(
     frame.render_widget(block, area);
 
     let content_area = inner.inner(Margin::new(1, 0));
-    let layout = transcript.build_lines(content_area.width.max(1), selected_event);
+    let layout = transcript.build_lines(content_area.width.max(1), selected_event, causal_chain);
     let height = usize::from(content_area.height.max(1));
     let scroll = layout
         .selected_line
@@ -565,6 +577,25 @@ fn entry_text_style(selected: bool) -> Style {
     }
 }
 
+fn apply_line_highlight(
+    line: Line<'static>,
+    relation: Option<crate::causal_chain::CausalRelation>,
+) -> Line<'static> {
+    let Some(relation) = relation else {
+        return line;
+    };
+
+    Line::from(
+        line.spans
+            .into_iter()
+            .map(|span| {
+                let style = relation.apply_to(span.style);
+                Span::styled(span.content, style)
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
 fn truncate_lines(mut lines: Vec<String>, max_lines: usize) -> Vec<String> {
     if lines.len() <= max_lines {
         return lines;
@@ -684,6 +715,9 @@ fn pad_to_width(text: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::causal_chain::{CausalChainState, CausalLink, CausalRelation};
+    use crate::session_list::{SessionEvent, SessionEventKind};
+    use time::OffsetDateTime;
 
     #[test]
     fn transcript_message_prefix_styles_match_spec() {
@@ -769,7 +803,7 @@ mod tests {
             ),
         ]);
 
-        let layout = transcript.build_lines(52, 1);
+        let layout = transcript.build_lines(52, 1, None);
         let rendered = layout
             .lines
             .iter()
@@ -781,5 +815,73 @@ mod tests {
         assert!(rendered.contains("file: crates/tui/src/replay.rs"));
         assert!(rendered.contains("→ render_transcript currently shows"));
         assert!(rendered.contains("🤖 Agent: review [expanded]"));
+    }
+
+    #[test]
+    fn transcript_causal_chain_highlights_visible_entries() {
+        let transcript = ReplayTranscript::new(vec![
+            TranscriptEntry::assistant(0, "Prompt submitted"),
+            TranscriptEntry::assistant(1, "Instructions loaded"),
+            TranscriptEntry::assistant(2, "Tool proposal"),
+            TranscriptEntry::assistant(3, "Permission granted"),
+            TranscriptEntry::assistant(4, "Tool result"),
+        ]);
+        let events = vec![
+            SessionEvent::named(
+                SessionEventKind::UserPromptSubmit,
+                "UserPromptSubmit",
+                parse_timestamp("2026-04-03T01:06:40Z"),
+            )
+            .with_raw_event_id(1),
+            SessionEvent::named(
+                SessionEventKind::InstructionsLoaded,
+                "InstructionsLoaded",
+                parse_timestamp("2026-04-03T01:06:50Z"),
+            )
+            .with_raw_event_id(2),
+            SessionEvent::named(
+                SessionEventKind::Tool,
+                "PreToolUse",
+                parse_timestamp("2026-04-03T01:07:00Z"),
+            )
+            .with_raw_event_id(3),
+            SessionEvent::named(
+                SessionEventKind::PermissionRequest,
+                "PermissionRequest",
+                parse_timestamp("2026-04-03T01:07:10Z"),
+            )
+            .with_raw_event_id(4),
+            SessionEvent::named(
+                SessionEventKind::Tool,
+                "PostToolUse",
+                parse_timestamp("2026-04-03T01:07:20Z"),
+            )
+            .with_raw_event_id(5),
+        ];
+        let links = [
+            CausalLink::new(1, 2),
+            CausalLink::new(2, 3),
+            CausalLink::new(3, 4),
+            CausalLink::new(4, 5),
+        ];
+        let mut chain = CausalChainState::activate(2, &events, &links);
+        chain.reveal_all_for_test();
+
+        let layout = transcript.build_lines(48, 2, Some(&chain));
+        let highlighted = layout
+            .lines
+            .iter()
+            .filter(|line| line.spans.iter().any(|span| span.style.bg.is_some()))
+            .count();
+
+        assert_eq!(highlighted, 5);
+        assert_eq!(chain.highlight_for(2), Some(CausalRelation::Selected));
+    }
+
+    fn parse_timestamp(input: &str) -> OffsetDateTime {
+        match OffsetDateTime::parse(input, &time::format_description::well_known::Rfc3339) {
+            Ok(value) => value,
+            Err(error) => panic!("failed to parse timestamp {input}: {error}"),
+        }
     }
 }
