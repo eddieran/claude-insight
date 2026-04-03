@@ -1,0 +1,44 @@
+---
+source: crates/tui/tests/all_views.rs
+expression: "render_to_string(120, 40, |frame| view.render(frame, frame.area()))"
+---
+┌ CLAUDE INSIGHT ──────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│◉ Sessions                        [/] Search  [s] date                                                                │
+│▸ #1  feature/replay-layout    2min ago   █   ███        $0.42    1 tools    🔴 errors                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│▁▂▃▅▇ = activity sparkline    🟢🟡🔴 = session mood                                                                   │
+│                             j/k navigate  Enter open  s sort  f filter  / search  q quit                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

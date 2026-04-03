@@ -1,0 +1,5 @@
+---
+source: crates/tui/tests/all_views.rs
+expression: "render_to_string(50, 12, |frame|\n{\n    evidence::render(frame, frame.area(), None,\n    &EvidencePaneState::default());\n})"
+---
+Select an event to see details

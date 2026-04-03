@@ -1,0 +1,5 @@
+---
+source: crates/tui/tests/all_views.rs
+expression: "render_to_string(120, 5, |frame|\n{\n    frame.render_widget(Paragraph::new(BrailleSpinner::render(\"Starting daemon...\",\n    StdDuration::from_millis(80),)).style(Style::new().bg(BACKGROUND).fg(TEXT_PRIMARY)),\n    frame.area(),);\n})"
+---
+⣽ Starting daemon...

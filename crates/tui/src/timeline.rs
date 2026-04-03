@@ -180,18 +180,7 @@ fn render_event_line(
 }
 
 fn event_emoji(kind: SessionEventKind) -> &'static str {
-    match kind {
-        SessionEventKind::SessionBoundary => "📋",
-        SessionEventKind::UserPromptSubmit => "💬",
-        SessionEventKind::InstructionsLoaded => "📖",
-        SessionEventKind::Subagent => "🤖",
-        SessionEventKind::Other => "📋",
-        SessionEventKind::Tool => "🔧",
-        SessionEventKind::PermissionRequest => "🛡️",
-        SessionEventKind::Retry => "🔧",
-        SessionEventKind::PermissionDenied => "🚫",
-        SessionEventKind::PostToolUseFailure | SessionEventKind::StopFailure => "⚠️",
-    }
+    kind.icon()
 }
 
 fn event_color(kind: SessionEventKind) -> Color {

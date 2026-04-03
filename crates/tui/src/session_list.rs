@@ -148,11 +148,7 @@ impl SessionEventKind {
         }
     }
 
-    pub fn is_tool_call(self) -> bool {
-        matches!(self, Self::Tool)
-    }
-
-    pub fn default_event_type(self) -> &'static str {
+    pub fn event_type(self) -> &'static str {
         match self {
             Self::SessionBoundary => "SessionBoundary",
             Self::UserPromptSubmit => "UserPromptSubmit",
@@ -182,6 +178,14 @@ impl SessionEventKind {
             Self::PostToolUseFailure | Self::StopFailure => "⚠️",
         }
     }
+
+    pub fn is_tool_call(self) -> bool {
+        matches!(self, Self::Tool)
+    }
+
+    pub fn default_event_type(self) -> &'static str {
+        self.event_type()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,7 +204,7 @@ impl SessionEvent {
         Self {
             raw_event_id: None,
             kind,
-            event_type: kind.default_event_type().to_string(),
+            event_type: kind.event_type().to_string(),
             timestamp,
             tool_use_id: None,
             label: kind.default_label().to_string(),
@@ -212,7 +216,7 @@ impl SessionEvent {
         Self {
             raw_event_id: None,
             kind: SessionEventKind::Tool,
-            event_type: SessionEventKind::Tool.default_event_type().to_string(),
+            event_type: SessionEventKind::Tool.event_type().to_string(),
             timestamp,
             tool_use_id: Some(tool_use_id.into()),
             label: SessionEventKind::Tool.default_label().to_string(),

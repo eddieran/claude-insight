@@ -1,0 +1,33 @@
+---
+source: crates/tui/tests/all_views.rs
+expression: "render_to_string(50, 30, |frame|\n{\n    evidence::render(frame, frame.area(), Some(&event),\n    &EvidencePaneState::default());\n})"
+---
+PermissionDenied                                  
+🚫  01:07:05                                      
+                                                  
+Permission                                        
+Decision: DENY                                    
+Source: workspace policy                          
+Rule: Write outside repo                          
+Mode: ask                                         
+                                                  
+Instruction Provenance                            
+File: .claude/CLAUDE.md                           
+Memory: project                                   
+Reason: auto                                      
+                                                  
+Linked Events                                     
+├── PreToolUse (01:07:00)                         
+├── PermissionRequest (01:07:03)                  
+└── PermissionDenied (01:07:05)                   
+                                                  
+Raw JSON                                          
+{                                                 
+  "event_type": "PermissionDenied",               
+  "permission_mode": "ask",                       
+  "reason": "Write outside repo",                 
+  "tool_input": {                                 
+    "file_path": "crates/tui/src/replay.rs"       
+  },                                              
+  "tool_name": "Write"                            
+}

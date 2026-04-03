@@ -1,0 +1,24 @@
+---
+source: crates/tui/tests/all_views.rs
+expression: "render_to_string(80, 20, |frame|\n{\n    render_transcript_pane(frame, frame.area(), \" Transcript [2] \", false,\n    &transcript, 0,);\n})"
+---
+┌ Transcript [2] ──────────────────────────────────────────────────────────────┐
+│ No transcript found for this session.                                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
