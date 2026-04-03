@@ -147,7 +147,13 @@ fn evidence_json_snapshot() {
 #[test]
 fn evidence_missing_data_snapshot() {
     insta::assert_snapshot!(render_to_string(50, 12, |frame| {
-        evidence::render(frame, frame.area(), None, &EvidencePaneState::default(), None);
+        evidence::render(
+            frame,
+            frame.area(),
+            None,
+            &EvidencePaneState::default(),
+            None,
+        );
     }));
 }
 
