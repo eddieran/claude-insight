@@ -2,7 +2,8 @@
 
 use std::{
     error::Error,
-    fs, io,
+    fs,
+    io::{self, Read},
     net::{SocketAddr, TcpStream},
     path::{Path, PathBuf},
     process::{Command as ProcessCommand, ExitCode, Stdio},
@@ -10,45 +11,34 @@ use std::{
     time::Duration,
 };
 
+use bytes::Bytes;
 use clap::{CommandFactory, Parser, Subcommand};
 use crossterm::style::{Color, Stylize};
+use http_body_util::Full;
+use hyper::{Request, StatusCode};
+use hyper_util::rt::TokioIo;
 use serde_json::{json, Map, Value};
 
 type CliResult<T = ()> = Result<T, Box<dyn Error>>;
 const CLAUDE_DIR_NAME: &str = ".claude";
 const SETTINGS_FILE_NAME: &str = "settings.json";
+const SETTINGS_LOCAL_FILE_NAME: &str = "settings.local.json";
 const INSIGHT_HOOK_STATUS: &str = "claude-insight";
 const INSIGHT_HOOK_TIMEOUT_SECS: u64 = 5;
+const BACKLOG_FILE_NAME: &str = "backlog.jsonl";
 const DAEMON_READY_TIMEOUT: Duration = Duration::from_secs(30);
 const DAEMON_PROBE_TIMEOUT: Duration = Duration::from_millis(200);
+// Install the core hook set that current Claude builds emit reliably in real
+// `claude -p` sessions. The parser/storage layer still supports the wider
+// schema, but the default install path should optimize for observed runtime
+// compatibility instead of theoretical coverage.
 const HOOK_EVENT_NAMES: &[&str] = &[
-    "ConfigChange",
-    "CwdChanged",
-    "Elicitation",
-    "ElicitationResult",
-    "FileChanged",
     "InstructionsLoaded",
-    "Notification",
-    "PermissionDenied",
-    "PermissionRequest",
-    "PostCompact",
     "PostToolUse",
-    "PostToolUseFailure",
-    "PreCompact",
     "PreToolUse",
-    "SessionEnd",
     "SessionStart",
-    "Setup",
     "Stop",
-    "StopFailure",
-    "SubagentStart",
-    "SubagentStop",
-    "TaskCompleted",
-    "TaskCreated",
-    "TeammateIdle",
     "UserPromptSubmit",
-    "WorktreeCreate",
-    "WorktreeRemove",
 ];
 
 #[derive(Debug, Parser)]
@@ -104,6 +94,13 @@ enum Command {
         #[command(subcommand)]
         command: DaemonCommand,
     },
+    #[command(hide = true)]
+    HookForward {
+        #[arg(long)]
+        backlog_path: PathBuf,
+        #[arg(long)]
+        capture_port: u16,
+    },
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -139,6 +136,10 @@ async fn run(cli: Cli) -> CliResult {
         Some(Command::Gc { days }) => handle_gc(days),
         Some(Command::Normalize { rebuild }) => handle_normalize(rebuild),
         Some(Command::Daemon { command }) => handle_daemon(command).await,
+        Some(Command::HookForward {
+            backlog_path,
+            capture_port,
+        }) => handle_hook_forward(&backlog_path, capture_port).await,
         None => {
             let mut command = Cli::command();
             command.print_help()?;
@@ -149,8 +150,9 @@ async fn run(cli: Cli) -> CliResult {
 }
 
 async fn handle_init(global: bool, capture_content: bool) -> CliResult {
-    let settings_path = settings_path(global)?;
-    let install_report = install_hooks(&settings_path, capture_content)?;
+    let settings_path = hook_settings_path(global)?;
+    let capture_path = capture_settings_path(global)?;
+    let install_report = install_hooks(&settings_path, &capture_path, capture_content)?;
     let daemon_report = daemon_start().await?;
     let status_label = if daemon_report.already_running {
         "status=running"
@@ -454,7 +456,19 @@ fn app_dir() -> CliResult<PathBuf> {
     Ok(claude_insight_storage::Database::default_dir()?)
 }
 
-fn settings_path(global: bool) -> CliResult<PathBuf> {
+fn hook_settings_path(global: bool) -> CliResult<PathBuf> {
+    if global {
+        return Ok(user_home_dir()?
+            .join(CLAUDE_DIR_NAME)
+            .join(SETTINGS_FILE_NAME));
+    }
+
+    Ok(std::env::current_dir()?
+        .join(CLAUDE_DIR_NAME)
+        .join(SETTINGS_LOCAL_FILE_NAME))
+}
+
+fn capture_settings_path(global: bool) -> CliResult<PathBuf> {
     if global {
         return Ok(user_home_dir()?
             .join(CLAUDE_DIR_NAME)
@@ -466,10 +480,17 @@ fn settings_path(global: bool) -> CliResult<PathBuf> {
         .join(SETTINGS_FILE_NAME))
 }
 
-fn install_hooks(settings_path: &Path, capture_content: bool) -> CliResult<HookInstallReport> {
-    let mut settings = load_settings(settings_path)?;
-    let hook_url = hook_url();
-    let capture_content_enabled = {
+fn install_hooks(
+    hook_settings_path: &Path,
+    capture_settings_path: &Path,
+    capture_content: bool,
+) -> CliResult<HookInstallReport> {
+    let mut settings = load_settings(hook_settings_path)?;
+    let hook_group = insight_hook_group()?;
+    let capture_content_enabled =
+        capture_content || capture_content_enabled(capture_settings_path)?;
+
+    {
         let root = ensure_object(&mut settings, "settings.json root")?;
         let hooks_value = root
             .entry("hooks".to_string())
@@ -481,32 +502,48 @@ fn install_hooks(settings_path: &Path, capture_content: bool) -> CliResult<HookI
                 .entry((*event_name).to_string())
                 .or_insert_with(|| Value::Array(Vec::new()));
             let entry_list = ensure_array(entries, event_name)?;
-            if !event_has_insight_hook(entry_list, &hook_url) {
-                entry_list.push(insight_hook_group(&hook_url));
+            if !event_has_insight_hook(entry_list) {
+                entry_list.push(hook_group.clone());
             }
         }
-
-        if capture_content {
-            root.insert("capture_content".to_string(), Value::Bool(true));
-        }
-
-        root.get("capture_content")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-    };
-
-    if let Some(parent) = settings_path.parent() {
-        fs::create_dir_all(parent)?;
     }
-    fs::write(
-        settings_path,
-        format!("{}\n", serde_json::to_string_pretty(&settings)?),
-    )?;
+
+    persist_settings(hook_settings_path, &settings)?;
+
+    if capture_content {
+        let mut capture_settings = if hook_settings_path == capture_settings_path {
+            settings
+        } else {
+            load_settings(capture_settings_path)?
+        };
+        let root = ensure_object(&mut capture_settings, "settings.json root")?;
+        root.insert("capture_content".to_string(), Value::Bool(true));
+        persist_settings(capture_settings_path, &capture_settings)?;
+    }
 
     Ok(HookInstallReport {
         configured_events: HOOK_EVENT_NAMES.len(),
         capture_content_enabled,
     })
+}
+
+fn capture_content_enabled(settings_path: &Path) -> CliResult<bool> {
+    Ok(load_settings(settings_path)?
+        .get("capture_content")
+        .and_then(Value::as_bool)
+        .unwrap_or(false))
+}
+
+fn persist_settings(settings_path: &Path, settings: &Value) -> CliResult {
+    if let Some(parent) = settings_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        settings_path,
+        format!("{}\n", serde_json::to_string_pretty(settings)?),
+    )?;
+
+    Ok(())
 }
 
 fn daemon_executable_path() -> CliResult<PathBuf> {
@@ -564,44 +601,117 @@ fn ensure_array<'a>(value: &'a mut Value, context: &str) -> CliResult<&'a mut Ve
         .ok_or_else(|| format!("{context} must be a JSON array").into())
 }
 
-fn event_has_insight_hook(entries: &[Value], hook_url: &str) -> bool {
+fn event_has_insight_hook(entries: &[Value]) -> bool {
     entries
         .iter()
         .filter_map(Value::as_object)
         .filter_map(|entry| entry.get("hooks"))
         .filter_map(Value::as_array)
         .flat_map(|hooks| hooks.iter())
-        .any(|hook| hook_matches_insight(hook, hook_url))
+        .any(hook_matches_insight)
 }
 
-fn hook_matches_insight(hook: &Value, hook_url: &str) -> bool {
+fn hook_matches_insight(hook: &Value) -> bool {
     let Some(hook) = hook.as_object() else {
         return false;
     };
 
-    hook.get("type").and_then(Value::as_str) == Some("http")
-        && hook.get("url").and_then(Value::as_str) == Some(hook_url)
+    hook.get("type").and_then(Value::as_str) == Some("command")
+        && hook
+            .get("command")
+            .and_then(Value::as_str)
+            .is_some_and(|command| command.contains(" hook-forward "))
 }
 
-fn insight_hook_group(hook_url: &str) -> Value {
-    json!({
+fn insight_hook_group() -> CliResult<Value> {
+    Ok(json!({
         "hooks": [
             {
-                "type": "http",
-                "url": hook_url,
+                "type": "command",
+                "command": hook_command()?,
                 "timeout": INSIGHT_HOOK_TIMEOUT_SECS,
                 "statusMessage": INSIGHT_HOOK_STATUS,
             }
         ]
-    })
+    }))
 }
 
-fn hook_url() -> String {
-    format!("http://127.0.0.1:{}/hooks", daemon_capture_addr().port())
+fn hook_command() -> CliResult<String> {
+    let executable = daemon_executable_path()?;
+    let backlog_path = app_dir()?.join(BACKLOG_FILE_NAME);
+    let capture_port = daemon_capture_addr().port();
+
+    Ok(format!(
+        "{} hook-forward --backlog-path {} --capture-port {}",
+        shell_quote(executable.to_string_lossy().as_ref()),
+        shell_quote(backlog_path.to_string_lossy().as_ref()),
+        capture_port,
+    ))
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\\\""))
 }
 
 fn daemon_capture_addr() -> SocketAddr {
     claude_insight_daemon::DaemonConfig::default().capture_addr
+}
+
+async fn handle_hook_forward(backlog_path: &Path, capture_port: u16) -> CliResult {
+    let mut payload_json = String::new();
+    io::stdin().read_to_string(&mut payload_json)?;
+
+    if payload_json.trim().is_empty() {
+        return Err("hook-forward expected JSON payload on stdin".into());
+    }
+
+    if forward_hook_payload(capture_port, &payload_json)
+        .await
+        .is_ok()
+    {
+        return Ok(());
+    }
+
+    let writer = claude_insight_capture::BacklogWriter::new(backlog_path);
+    writer.append(&payload_json)?;
+
+    Ok(())
+}
+
+async fn forward_hook_payload(capture_port: u16, payload_json: &str) -> io::Result<()> {
+    let capture_addr = SocketAddr::from(([127, 0, 0, 1], capture_port));
+    let stream = tokio::time::timeout(
+        DAEMON_READY_TIMEOUT,
+        tokio::net::TcpStream::connect(capture_addr),
+    )
+    .await
+    .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "timed out connecting to daemon"))?
+    .map_err(io::Error::other)?;
+    let io = TokioIo::new(stream);
+    let (mut sender, connection) = hyper::client::conn::http1::handshake(io)
+        .await
+        .map_err(io::Error::other)?;
+    tokio::spawn(async move {
+        let _ = connection.await;
+    });
+
+    let request = Request::post(format!("http://127.0.0.1:{capture_port}/hooks"))
+        .header("Content-Type", "application/json")
+        .body(Full::new(Bytes::from(payload_json.to_owned())))
+        .map_err(io::Error::other)?;
+    let response = sender
+        .send_request(request)
+        .await
+        .map_err(io::Error::other)?;
+
+    if response.status() == StatusCode::OK {
+        return Ok(());
+    }
+
+    Err(io::Error::other(format!(
+        "unexpected hook relay response: {}",
+        response.status()
+    )))
 }
 
 fn wait_for_daemon_ready(capture_addr: SocketAddr) -> CliResult {

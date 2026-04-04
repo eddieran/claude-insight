@@ -10,13 +10,17 @@ name = "claude-insight"
 path = "src/main.rs"
 
 [dependencies]
+bytes = "1"
 clap.workspace = true
 claude-insight-capture.workspace = true
 claude-insight-daemon.workspace = true
 claude-insight-storage.workspace = true
 claude-insight-tui.workspace = true
 crossterm.workspace = true
+http-body-util = "0.1"
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 serde_json.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["net", "time"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
