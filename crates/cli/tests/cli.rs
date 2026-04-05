@@ -47,6 +47,7 @@ impl TestEnv {
         let mut command = Command::new(BIN_PATH);
         command.env("CLAUDE_INSIGHT_HOME", self.app_home());
         command.env("HOME", self.app_home());
+        command.current_dir(self.app_home());
         command
     }
 }
