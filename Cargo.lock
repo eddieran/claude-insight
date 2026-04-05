@@ -221,25 +221,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
-name = "capture"
-version = "0.1.0"
-dependencies = [
- "axum",
- "fs2",
- "notify",
- "rusqlite",
- "serde",
- "serde_json",
- "storage",
- "tempfile",
- "time",
- "tokio",
- "tower",
- "tracing",
- "types",
-]
-
-[[package]]
 name = "cassowary"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -311,37 +292,108 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "claude-insight-workspace"
-version = "0.1.0"
-dependencies = [
- "axum",
- "capture",
- "rusqlite",
- "serde_json",
- "storage",
- "tempfile",
- "tokio",
- "tower",
-]
-
-[[package]]
-name = "cli"
+name = "claude-insight"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "capture",
  "clap",
+ "claude-insight-capture",
+ "claude-insight-daemon",
+ "claude-insight-storage",
+ "claude-insight-tui",
  "crossterm",
- "daemon",
  "http-body-util",
  "hyper",
  "hyper-util",
  "serde_json",
- "storage",
+ "serial_test",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
- "tui",
+]
+
+[[package]]
+name = "claude-insight-capture"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "claude-insight-storage",
+ "claude-insight-types",
+ "fs2",
+ "notify",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "time",
+ "tokio",
+ "tower",
+ "tracing",
+]
+
+[[package]]
+name = "claude-insight-daemon"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "claude-insight-capture",
+ "claude-insight-storage",
+ "rusqlite",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "claude-insight-storage"
+version = "0.1.0"
+dependencies = [
+ "claude-insight-types",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "claude-insight-tui"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "claude-insight-types",
+ "crossterm",
+ "insta",
+ "ratatui",
+ "serde_json",
+ "syntect",
+ "time",
+ "tracing",
+ "unicode-width 0.2.0",
+]
+
+[[package]]
+name = "claude-insight-types"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "claude-insight-workspace"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "claude-insight-capture",
+ "claude-insight-storage",
+ "rusqlite",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -423,20 +475,6 @@ name = "crunchy"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
-
-[[package]]
-name = "daemon"
-version = "0.1.0"
-dependencies = [
- "axum",
- "capture",
- "rusqlite",
- "serde_json",
- "storage",
- "tempfile",
- "tokio",
- "tracing",
-]
 
 [[package]]
 name = "darling"
@@ -653,6 +691,17 @@ name = "futures-core"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baf29c38818342a3b26b5b923639e7b1f4a61fc5e76102d4b1981c6dc7a7579d"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
 
 [[package]]
 name = "futures-task"
@@ -1529,10 +1578,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "scc"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc"
+dependencies = [
+ "sdd",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "sdd"
+version = "3.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
 
 [[package]]
 name = "semver"
@@ -1604,6 +1668,32 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serial_test"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "911bd979bf1070a3f3aa7b691a3b3e9968f339ceeec89e08c280a8a22207a32f"
+dependencies = [
+ "futures-executor",
+ "futures-util",
+ "log",
+ "once_cell",
+ "parking_lot",
+ "scc",
+ "serial_test_derive",
+]
+
+[[package]]
+name = "serial_test_derive"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a7d91949b85b0d2fb687445e448b40d322b6b3e4af6b44a29b21d9a5f33e6d9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1691,17 +1781,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "storage"
-version = "0.1.0"
-dependencies = [
- "rusqlite",
- "serde",
- "serde_json",
- "tracing",
- "types",
-]
 
 [[package]]
 name = "strsim"
@@ -1977,31 +2056,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "tui"
-version = "0.1.0"
-dependencies = [
- "arboard",
- "crossterm",
- "insta",
- "ratatui",
- "serde_json",
- "syntect",
- "time",
- "tracing",
- "types",
- "unicode-width 0.2.0",
-]
-
-[[package]]
-name = "types"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "tracing",
-]
 
 [[package]]
 name = "unicode-ident"

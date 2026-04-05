@@ -37,9 +37,10 @@ cargo fmt --all -- --check
 Useful local commands:
 
 ```bash
-cargo run -p cli -- --help
-cargo run -p cli -- init --help
-cargo run -p cli -- trace --help
+cargo run -p claude-insight -- --help
+cargo run -p claude-insight -- init --help
+cargo run -p claude-insight -- trace --help
+./scripts/publish-crates.sh --validate
 ```
 
 ## Workspace Overview
@@ -86,6 +87,37 @@ regenerate the relevant tests in the same change.
    the thread.
 
 Agent-authored PRs should carry the `symphony` label.
+
+## Publishing Releases
+
+The public distribution flow has three maintainer steps:
+
+1. Publish the workspace crates to crates.io in dependency order:
+
+```bash
+./scripts/publish-crates.sh --validate
+./scripts/publish-crates.sh --publish
+```
+
+`--validate` is safe for CI and local dry runs: it dry-runs each internal
+`claude-insight*` crate and packages the top-level `claude-insight` crate until
+those internals are already visible on crates.io. `--publish` performs the real
+crates.io publish sequence and waits for each version to appear before
+continuing.
+
+2. Push the version tag to trigger the GitHub Release workflow:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+That workflow builds platform archives, emits `SHA256SUMS`, generates
+`claude-insight.rb`, and runs the installed-binary smoke validation before
+publishing the GitHub Release assets.
+
+3. Update `eddieran/homebrew-tap` with the generated `claude-insight.rb`
+   formula from the release assets once the tagged GitHub Release is live.
 
 ## Code Style
 

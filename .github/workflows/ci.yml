@@ -31,3 +31,9 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Package Manifest
+        run: cargo package --locked --workspace --exclude claude-insight-workspace --no-verify
+
+      - name: Publish Graph Validation
+        run: ./scripts/publish-crates.sh --validate

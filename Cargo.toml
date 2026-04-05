@@ -31,7 +31,10 @@ resolver = "2"
 [workspace.package]
 description = "Local observability and audit tooling for Claude Code sessions."
 edition = "2021"
+homepage = "https://github.com/eddieran/claude-insight"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/eddieran/claude-insight"
 version = "0.1.0"
 
 [workspace.dependencies]
@@ -49,11 +52,11 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
-claude-insight-capture = { package = "capture", path = "crates/capture" }
-claude-insight-daemon = { package = "daemon", path = "crates/daemon" }
-claude-insight-storage = { package = "storage", path = "crates/storage" }
-claude-insight-tui = { path = "crates/tui", package = "tui" }
-claude-insight-types = { path = "crates/types", package = "types" }
+claude-insight-capture = { path = "crates/capture", version = "0.1.0" }
+claude-insight-daemon = { path = "crates/daemon", version = "0.1.0" }
+claude-insight-storage = { path = "crates/storage", version = "0.1.0" }
+claude-insight-tui = { path = "crates/tui", version = "0.1.0" }
+claude-insight-types = { path = "crates/types", version = "0.1.0" }
 
 [dev-dependencies]
 axum.workspace = true

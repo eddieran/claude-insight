@@ -492,9 +492,9 @@ fn ensure_cli_binary() -> Result<(), Box<dyn Error>> {
         .current_dir(REPO_ROOT)
         .args(["build", "-q", "--manifest-path"])
         .arg(Path::new(REPO_ROOT).join("Cargo.toml"))
-        .args(["-p", "cli"])
+        .args(["-p", "claude-insight"])
         .output()?;
-    let _checked = ensure_success(output, "cargo build -p cli")?;
+    let _checked = ensure_success(output, "cargo build -p claude-insight")?;
 
     if !binary_path.exists() {
         return Err(io::Error::other(format!(
