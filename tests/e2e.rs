@@ -40,6 +40,7 @@ fn e2e_simple_prompt_captures_traceable_session() -> Result<(), Box<dyn Error>> 
         has_event_type(events, "SessionStart")
             && has_event_type(events, "UserPromptSubmit")
             && has_terminal_event(events)
+            && has_transcript_event(events)
     })?;
 
     assert!(events.len() >= 3, "expected at least three raw events");
@@ -56,6 +57,19 @@ fn e2e_simple_prompt_captures_traceable_session() -> Result<(), Box<dyn Error>> 
         params![session_id.as_str()],
         1,
     )?;
+
+    let connection = Connection::open(env.database_path())?;
+    let cwd: String = connection.query_row(
+        "SELECT cwd
+             FROM sessions
+             WHERE id = ?1",
+        params![session_id.as_str()],
+        |row| row.get(0),
+    )?;
+    assert_eq!(
+        fs::canonicalize(PathBuf::from(cwd))?,
+        fs::canonicalize(env.workspace())?
+    );
 
     Ok(())
 }
