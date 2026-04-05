@@ -160,12 +160,15 @@ the Homebrew formula payload, and runs an installed-binary smoke check through:
 ```bash
 ./scripts/package-release-assets.sh v0.1.0 dist/raw dist/release
 ./scripts/validate-installed-binary.sh --artifact-dir dist/release
+./scripts/publish-crates.sh --validate
 ```
 
 The installed-binary validation always covers `--help`, the default launcher,
 `init --global`, hook forwarding, `trace`, and `search`. A real `claude -p`
 walkthrough remains conditional on local Claude availability/auth and can be
 recorded alongside the scripted smoke logs when release evidence is gathered.
+`publish-crates.sh --validate` checks the crates.io publish graph without
+requiring release credentials in CI.
 
 ## What The TUI Shows
 
