@@ -108,8 +108,8 @@ continuing.
 2. Push the version tag to trigger the GitHub Release workflow:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 That workflow builds platform archives, emits `SHA256SUMS`, generates

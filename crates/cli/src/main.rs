@@ -173,7 +173,7 @@ async fn handle_init(global: bool, capture_content: bool) -> CliResult {
         "status=started"
     };
 
-    println!("{}", claude_insight_tui::ASCII_BANNER);
+    println!("{}", claude_insight_tui::ascii_banner());
     println!(
         "{} {}",
         "Initialized".green().bold(),

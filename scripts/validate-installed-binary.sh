@@ -48,6 +48,17 @@ resolve_asset_name() {
   printf '%s' "$asset"
 }
 
+resolve_expected_version() {
+  local asset_name="$1"
+  local version
+  version="$(basename "$asset_name" | sed -E 's/^claude-insight-v([0-9]+\.[0-9]+\.[0-9]+)-.*$/\1/')"
+  if [[ -z "$version" || "$version" == "$(basename "$asset_name")" ]]; then
+    echo "failed to derive version from asset name: $asset_name" >&2
+    exit 1
+  fi
+  printf '%s' "$version"
+}
+
 assert_contains() {
   local haystack="$1"
   local needle="$2"
@@ -71,6 +82,7 @@ rewrite_fixture() {
 }
 
 asset_path="$(resolve_asset_name)"
+expected_version="$(resolve_expected_version "$asset_path")"
 tmp_root="$(mktemp -d -t claude-insight-installed-smoke.XXXXXX)"
 install_root="${tmp_root}/install"
 workspace_dir="${tmp_root}/workspace"
@@ -97,6 +109,7 @@ first_launch_output="$(
   "$binary"
 )"
 assert_contains "$first_launch_output" "First-run guided setup"
+assert_contains "$first_launch_output" "v${expected_version}"
 if [[ "$first_launch_output" == *"Usage: claude-insight [COMMAND]"* ]]; then
   echo "default launch regressed to clap help" >&2
   exit 1
@@ -109,6 +122,7 @@ init_output="$(
   "$binary" init --global
 )"
 assert_contains "$init_output" "Initialized"
+assert_contains "$init_output" "v${expected_version}"
 
 session_id="release-smoke-$(date +%s)"
 backlog_path="${home_dir}/.claude-insight/backlog.jsonl"

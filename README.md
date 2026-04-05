@@ -158,7 +158,7 @@ The release workflow packages versioned archives, emits `SHA256SUMS`, generates
 the Homebrew formula payload, and runs an installed-binary smoke check through:
 
 ```bash
-./scripts/package-release-assets.sh v0.1.0 dist/raw dist/release
+./scripts/package-release-assets.sh vX.Y.Z dist/raw dist/release
 ./scripts/validate-installed-binary.sh --artifact-dir dist/release
 ./scripts/publish-crates.sh --validate
 ```

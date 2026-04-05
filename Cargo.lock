@@ -293,7 +293,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "claude-insight"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "bytes",
  "clap",
@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "claude-insight-capture"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "axum",
  "claude-insight-storage",
@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "claude-insight-daemon"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "axum",
  "claude-insight-capture",
@@ -348,7 +348,7 @@ dependencies = [
 
 [[package]]
 name = "claude-insight-storage"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "claude-insight-types",
  "rusqlite",
@@ -359,7 +359,7 @@ dependencies = [
 
 [[package]]
 name = "claude-insight-tui"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "arboard",
  "claude-insight-types",
@@ -375,7 +375,7 @@ dependencies = [
 
 [[package]]
 name = "claude-insight-types"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -384,7 +384,7 @@ dependencies = [
 
 [[package]]
 name = "claude-insight-workspace"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "axum",
  "claude-insight-capture",
