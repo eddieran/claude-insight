@@ -103,19 +103,7 @@ fn load_events_after(
 fn normalize_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<()> {
     match event.source.as_str() {
         "hook" => normalize_hook_event(tx, event),
-        "transcript" => {
-            if is_known_transcript_event(event.event_type.as_str()) {
-                Ok(())
-            } else {
-                tracing::debug!(
-                    raw_event_id = event.id,
-                    source = event.source,
-                    event_type = event.event_type,
-                    "skipping unknown transcript event during normalization"
-                );
-                Ok(())
-            }
-        }
+        "transcript" => normalize_transcript_event(tx, event),
         _ => {
             tracing::debug!(
                 raw_event_id = event.id,
@@ -126,6 +114,55 @@ fn normalize_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<(
             Ok(())
         }
     }
+}
+
+fn normalize_transcript_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<()> {
+    let payload = match serde_json::from_str::<Value>(&event.payload_json) {
+        Ok(payload) => payload,
+        Err(error) => {
+            tracing::debug!(
+                raw_event_id = event.id,
+                event_type = event.event_type,
+                %error,
+                "skipping malformed transcript event during normalization"
+            );
+            return Ok(());
+        }
+    };
+
+    let session_id = event
+        .session_id
+        .as_deref()
+        .or_else(|| payload_string(&payload, "sessionId"));
+    let Some(session_id) = session_id else {
+        return Ok(());
+    };
+
+    let permission_mode = payload_string(&payload, "permissionMode")
+        .or_else(|| payload_string(&payload, "permission_mode"));
+    let claude_version = event
+        .claude_version
+        .as_deref()
+        .or_else(|| payload_string(&payload, "version"));
+    let model = payload
+        .get("message")
+        .and_then(|message| message.get("model"))
+        .and_then(Value::as_str)
+        .or_else(|| payload_string(&payload, "model"));
+
+    upsert_session_fields(
+        tx,
+        session_id,
+        None,
+        payload_string(&payload, "cwd"),
+        permission_mode,
+        claude_version,
+        model,
+        None,
+        None,
+        None,
+        None,
+    )
 }
 
 fn normalize_hook_event(tx: &Transaction<'_>, event: &RawEvent) -> rusqlite::Result<()> {
@@ -976,36 +1013,6 @@ fn tool_metadata(tool_name: &str) -> (bool, Option<String>) {
         ),
         None => (false, None),
     }
-}
-
-fn is_known_transcript_event(event_type: &str) -> bool {
-    matches!(
-        event_type,
-        "user"
-            | "assistant"
-            | "system"
-            | "attachment"
-            | "progress"
-            | "summary"
-            | "custom-title"
-            | "ai-title"
-            | "last-prompt"
-            | "task-summary"
-            | "tag"
-            | "agent-name"
-            | "agent-color"
-            | "agent-setting"
-            | "pr-link"
-            | "file-history-snapshot"
-            | "attribution-snapshot"
-            | "queue-operation"
-            | "speculation-accept"
-            | "mode"
-            | "worktree-state"
-            | "content-replacement"
-            | "marble-origami-commit"
-            | "marble-origami-snapshot"
-    )
 }
 
 fn stable_hash(value: &str) -> String {
