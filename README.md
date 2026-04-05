@@ -32,13 +32,27 @@ so they stay close to the UI that the tests verify.
 
 ## Installation
 
+Current supported path while the public distribution rollout is still in
+progress:
+
+```bash
+git clone git@github.com:eddieran/claude-insight.git
+cd claude-insight
+cargo build --release
+```
+
+The release binary is available at `target/release/claude-insight`.
+
+Planned published install paths, once the package release and tap update are
+live:
+
 ### 1. Install from Cargo
 
 ```bash
 cargo install claude-insight --locked
 ```
 
-Upgrade an existing Cargo install:
+Upgrade an existing published Cargo install:
 
 ```bash
 cargo install claude-insight --locked --force
@@ -57,7 +71,7 @@ brew tap eddieran/tap
 brew install claude-insight
 ```
 
-Upgrade or remove the Homebrew install:
+Upgrade or remove the published Homebrew install:
 
 ```bash
 brew upgrade claude-insight
@@ -77,16 +91,6 @@ deleting the installed `claude-insight` executable from your `PATH`.
 Release artifacts are expected for Linux, macOS, and Windows on amd64 and
 arm64, along with `SHA256SUMS` and a generated `claude-insight.rb` formula file
 for Homebrew tap updates.
-
-### 4. Build from source
-
-```bash
-git clone git@github.com:eddieran/claude-insight.git
-cd claude-insight
-cargo build --release
-```
-
-The release binary is available at `target/release/claude-insight`.
 
 ## Quick Start
 
