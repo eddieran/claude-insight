@@ -11,6 +11,20 @@ raw_dir="${2:-dist/raw}"
 release_dir="${3:-dist/release}"
 bin_name="claude-insight"
 release_dir_abs="$(mkdir -p "$release_dir" && cd "$release_dir" && pwd)"
+expected_version="${version_tag#v}"
+
+package_id="$(cargo pkgid -p "${bin_name}" 2>/dev/null || true)"
+package_version="${package_id##*@}"
+
+if [[ -z "$package_id" || -z "$package_version" || "$package_version" == "$package_id" ]]; then
+  echo "failed to resolve ${bin_name} package version from cargo metadata" >&2
+  exit 1
+fi
+
+if [[ "$package_version" != "$expected_version" ]]; then
+  echo "release tag ${version_tag} does not match ${bin_name} package version ${package_version}" >&2
+  exit 1
+fi
 
 checksum_file() {
   if command -v sha256sum >/dev/null 2>&1; then

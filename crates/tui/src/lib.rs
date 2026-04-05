@@ -25,7 +25,7 @@ pub use session_list::{
 };
 pub use timeline::TimelinePane;
 pub use widgets::{
-    banner::{ansi_banner, banner_lines, banner_width, ASCII_BANNER},
+    banner::{ansi_banner, ascii_banner, banner_lines, banner_width},
     mood_badge::{compute_mood, render_mood_badge, Mood},
     progress_bar::ProgressBar,
     sparkline::compute_sparkline_data,
