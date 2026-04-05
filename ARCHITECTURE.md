@@ -132,6 +132,10 @@ The clap-based entry point wires everything together. Current commands include:
 - `normalize`
 - `daemon start|stop`
 
+Running `claude-insight` without a subcommand is also a first-class launcher
+path: it shows the first-run wizard before capture exists, and otherwise
+renders the default session home screen.
+
 ## Storage Model
 
 Claude Insight keeps multiple storage artifacts under `~/.claude-insight/` by

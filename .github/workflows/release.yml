@@ -27,32 +27,32 @@ jobs:
             target: x86_64-unknown-linux-gnu
             artifact_name: linux-x86_64
             setup: cargo install cross --locked
-            build: cross build --locked --release --package cli --bin claude-insight --target x86_64-unknown-linux-gnu
+            build: cross build --locked --release --package claude-insight --bin claude-insight --target x86_64-unknown-linux-gnu
           - runner: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact_name: linux-aarch64
             setup: cargo install cross --locked
-            build: cross build --locked --release --package cli --bin claude-insight --target aarch64-unknown-linux-gnu
+            build: cross build --locked --release --package claude-insight --bin claude-insight --target aarch64-unknown-linux-gnu
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: windows-x86_64
             setup: ""
-            build: cargo build --locked --release --package cli --bin claude-insight --target x86_64-pc-windows-msvc
+            build: cargo build --locked --release --package claude-insight --bin claude-insight --target x86_64-pc-windows-msvc
           - runner: windows-latest
             target: aarch64-pc-windows-msvc
             artifact_name: windows-aarch64
             setup: rustup target add aarch64-pc-windows-msvc
-            build: cargo build --locked --release --package cli --bin claude-insight --target aarch64-pc-windows-msvc
+            build: cargo build --locked --release --package claude-insight --bin claude-insight --target aarch64-pc-windows-msvc
           - runner: macos-15-intel
             target: x86_64-apple-darwin
             artifact_name: darwin-x86_64
             setup: ""
-            build: cargo build --locked --release --package cli --bin claude-insight --target x86_64-apple-darwin
+            build: cargo build --locked --release --package claude-insight --bin claude-insight --target x86_64-apple-darwin
           - runner: macos-15-intel
             target: aarch64-apple-darwin
             artifact_name: darwin-aarch64
             setup: rustup target add aarch64-apple-darwin
-            build: cargo build --locked --release --package cli --bin claude-insight --target aarch64-apple-darwin
+            build: cargo build --locked --release --package claude-insight --bin claude-insight --target aarch64-apple-darwin
 
     steps:
       - uses: actions/checkout@v4
@@ -101,33 +101,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME}"
-          mkdir -p dist/release
+          ./scripts/package-release-assets.sh "${GITHUB_REF_NAME}" "dist/raw" "dist/release"
 
-          while IFS= read -r -d '' binary; do
-            artifact_name="$(basename "$(dirname "$binary")")"
-            binary_name="$(basename "$binary")"
-
-            case "$artifact_name" in
-              windows-*)
-                asset_name="${BIN_NAME}-${version}-${artifact_name}.zip"
-                (
-                  cd "$(dirname "$binary")"
-                  zip -q -j "$GITHUB_WORKSPACE/dist/release/$asset_name" "$binary_name"
-                )
-                ;;
-              *)
-                asset_name="${BIN_NAME}-${version}-${artifact_name}.tar.gz"
-                chmod +x "$binary"
-                tar -czf "dist/release/$asset_name" -C "$(dirname "$binary")" "$binary_name"
-                ;;
-            esac
-          done < <(find dist/raw -type f -name "${BIN_NAME}*" -print0)
-
-          (
-            cd dist/release
-            sha256sum ./* > SHA256SUMS
-          )
+      - name: Validate packaged binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/validate-installed-binary.sh --artifact-dir dist/release
 
       - name: Publish assets to GitHub Release
         env:

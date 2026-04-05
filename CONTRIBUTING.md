@@ -37,9 +37,9 @@ cargo fmt --all -- --check
 Useful local commands:
 
 ```bash
-cargo run -p cli -- --help
-cargo run -p cli -- init --help
-cargo run -p cli -- trace --help
+cargo run -p claude-insight -- --help
+cargo run -p claude-insight -- init --help
+cargo run -p claude-insight -- trace --help
 ```
 
 ## Workspace Overview

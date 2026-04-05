@@ -35,19 +35,50 @@ so they stay close to the UI that the tests verify.
 ### 1. Install from Cargo
 
 ```bash
-cargo install claude-insight
+cargo install claude-insight --locked
 ```
 
-### 2. Download a release binary
+Upgrade an existing Cargo install:
+
+```bash
+cargo install claude-insight --locked --force
+```
+
+Remove the Cargo-installed binary:
+
+```bash
+cargo uninstall claude-insight
+```
+
+### 2. Install from Homebrew
+
+```bash
+brew tap eddieran/tap
+brew install claude-insight
+```
+
+Upgrade or remove the Homebrew install:
+
+```bash
+brew upgrade claude-insight
+brew uninstall claude-insight
+brew untap eddieran/tap
+```
+
+### 3. Download a release binary
 
 1. Open the GitHub Releases page for this repository.
 2. Download the archive for your platform and architecture.
 3. Unpack it and place `claude-insight` somewhere on your `PATH`.
 
-Release artifacts are expected for Linux, macOS, and Windows on amd64 and
-arm64.
+Upgrade by replacing the old binary with the newly downloaded one. Remove it by
+deleting the installed `claude-insight` executable from your `PATH`.
 
-### 3. Build from source
+Release artifacts are expected for Linux, macOS, and Windows on amd64 and
+arm64, along with `SHA256SUMS` and a generated `claude-insight.rb` formula file
+for Homebrew tap updates.
+
+### 4. Build from source
 
 ```bash
 git clone git@github.com:eddieran/claude-insight.git
@@ -68,6 +99,10 @@ claude-insight
 
 `init --global` updates `~/.claude/settings.json`, enables Claude Insight hook
 entries for all supported Claude Code events, and starts the local daemon.
+
+On first launch, `claude-insight` opens the first-run wizard if there is no
+local database yet. Once sessions exist, the same bare command renders the
+default session home screen instead of falling back to clap help text.
 
 By default, Claude Insight stores state under `~/.claude-insight/`:
 
@@ -112,6 +147,21 @@ claude-insight normalize --rebuild
 claude-insight daemon start
 claude-insight daemon stop
 ```
+
+## Release Validation
+
+The release workflow packages versioned archives, emits `SHA256SUMS`, generates
+the Homebrew formula payload, and runs an installed-binary smoke check through:
+
+```bash
+./scripts/package-release-assets.sh v0.1.0 dist/raw dist/release
+./scripts/validate-installed-binary.sh --artifact-dir dist/release
+```
+
+The installed-binary validation always covers `--help`, the default launcher,
+`init --global`, hook forwarding, `trace`, and `search`. A real `claude -p`
+walkthrough remains conditional on local Claude availability/auth and can be
+recorded alongside the scripted smoke logs when release evidence is gathered.
 
 ## What The TUI Shows
 

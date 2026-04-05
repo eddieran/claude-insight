@@ -136,6 +136,7 @@ fn run_hook_forward(
 }
 
 #[test]
+#[serial_test::serial]
 fn trace_without_session_lists_recent_sessions() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let database = env.database()?;
@@ -164,6 +165,66 @@ fn trace_without_session_lists_recent_sessions() -> Result<(), Box<dyn std::erro
 }
 
 #[test]
+#[serial_test::serial]
+fn default_launch_renders_first_run_wizard_instead_of_help(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let env = TestEnv::new()?;
+
+    let output = env.command().output()?;
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("First-run guided setup"));
+    assert!(stdout.contains("Install hooks?"));
+    assert!(!stdout.contains("Usage: claude-insight [COMMAND]"));
+
+    Ok(())
+}
+
+#[test]
+#[serial_test::serial]
+fn default_launch_renders_session_home_when_data_exists() -> Result<(), Box<dyn std::error::Error>>
+{
+    let env = TestEnv::new()?;
+    let database = env.database()?;
+
+    database.insert_raw_event(
+        "session-1",
+        "hook",
+        "SessionStart",
+        "2026-04-03T15:00:00Z",
+        &serde_json::json!({
+            "source": "startup",
+            "gitBranch": "main",
+        })
+        .to_string(),
+    )?;
+
+    let output = env.command().output()?;
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("◉ Sessions"));
+    assert!(stdout.contains("main"));
+    assert!(!stdout.contains("Usage: claude-insight [COMMAND]"));
+
+    Ok(())
+}
+
+#[test]
+#[serial_test::serial]
 fn search_returns_matching_events() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let database = env.database()?;
@@ -197,6 +258,7 @@ fn search_returns_matching_events() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[serial_test::serial]
 fn gc_prunes_old_events() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let database = env.database()?;
@@ -233,6 +295,7 @@ fn gc_prunes_old_events() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[serial_test::serial]
 fn normalize_materializes_sessions_table() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let database = env.database()?;
@@ -264,6 +327,7 @@ fn normalize_materializes_sessions_table() -> Result<(), Box<dyn std::error::Err
 }
 
 #[test]
+#[serial_test::serial]
 fn help_lists_new_commands() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
 
@@ -297,6 +361,7 @@ fn help_lists_new_commands() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[serial_test::serial]
 fn init_installs_project_hooks_and_starts_daemon() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let project_dir = env.app_home().join("project");
@@ -358,6 +423,7 @@ fn init_installs_project_hooks_and_starts_daemon() -> Result<(), Box<dyn std::er
 }
 
 #[test]
+#[serial_test::serial]
 fn init_project_capture_content_splits_hook_and_capture_settings(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
@@ -405,6 +471,7 @@ fn init_project_capture_content_splits_hook_and_capture_settings(
 }
 
 #[test]
+#[serial_test::serial]
 fn init_global_preserves_existing_hooks_and_is_idempotent() -> Result<(), Box<dyn std::error::Error>>
 {
     let env = TestEnv::new()?;
@@ -492,6 +559,7 @@ fn init_global_preserves_existing_hooks_and_is_idempotent() -> Result<(), Box<dy
 }
 
 #[test]
+#[serial_test::serial]
 fn init_prints_first_run_banner() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let capture_port = reserve_capture_port()?;
@@ -524,6 +592,7 @@ fn init_prints_first_run_banner() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[serial_test::serial]
 fn hook_forward_appends_to_backlog_when_daemon_is_unavailable(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
@@ -546,6 +615,7 @@ fn hook_forward_appends_to_backlog_when_daemon_is_unavailable(
 }
 
 #[test]
+#[serial_test::serial]
 fn hook_forward_posts_to_daemon_when_available() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let backlog_path = env.app_home().join(".claude-insight").join("backlog.jsonl");
@@ -602,6 +672,7 @@ fn hook_forward_posts_to_daemon_when_available() -> Result<(), Box<dyn std::erro
 }
 
 #[test]
+#[serial_test::serial]
 fn daemon_start_and_stop_manage_pid_file() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let pid_file = env.app_home().join(".claude-insight").join("daemon.pid");

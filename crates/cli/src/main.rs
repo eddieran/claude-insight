@@ -12,12 +12,13 @@ use std::{
 };
 
 use bytes::Bytes;
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use crossterm::style::{Color, Stylize};
 use http_body_util::Full;
 use hyper::{Request, StatusCode};
 use hyper_util::rt::TokioIo;
 use serde_json::{json, Map, Value};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 type CliResult<T = ()> = Result<T, Box<dyn Error>>;
 const CLAUDE_DIR_NAME: &str = ".claude";
@@ -140,13 +141,25 @@ async fn run(cli: Cli) -> CliResult {
             backlog_path,
             capture_port,
         }) => handle_hook_forward(&backlog_path, capture_port).await,
-        None => {
-            let mut command = Cli::command();
-            command.print_help()?;
-            println!();
-            Ok(())
-        }
+        None => handle_launch(),
     }
+}
+
+fn handle_launch() -> CliResult {
+    let (width, height) = launcher_dimensions();
+
+    if claude_insight_tui::WizardViewState::should_launch() {
+        print!("{}", claude_insight_tui::render_wizard_step1(width, height));
+        return Ok(());
+    }
+
+    let sessions = load_session_list_items(10)?;
+    print!(
+        "{}",
+        claude_insight_tui::render_session_list(sessions, width, height)
+    );
+
+    Ok(())
 }
 
 async fn handle_init(global: bool, capture_content: bool) -> CliResult {
@@ -752,6 +765,98 @@ fn database_path_label() -> CliResult<String> {
         "db={}",
         claude_insight_storage::Database::default_path()?.display()
     ))
+}
+
+fn launcher_dimensions() -> (u16, u16) {
+    match crossterm::terminal::size() {
+        Ok((width, height)) => (width.max(80), height.max(24)),
+        Err(_) => (120, 30),
+    }
+}
+
+fn load_session_list_items(limit: usize) -> CliResult<Vec<claude_insight_tui::SessionListItem>> {
+    let database = claude_insight_storage::Database::open_default()?;
+    let summaries = database.list_recent_sessions(limit)?;
+    let mut sessions = Vec::with_capacity(summaries.len());
+
+    for summary in summaries {
+        let raw_events = database.query_raw_events_by_session(&summary.session_id)?;
+        let events = raw_events
+            .iter()
+            .map(raw_event_to_session_event)
+            .collect::<CliResult<Vec<_>>>()?;
+        let git_branch = infer_git_branch(&summary.session_id, &raw_events);
+        let cost_usd = infer_cost_usd(&raw_events);
+        let last_updated = parse_rfc3339_timestamp(&summary.end_ts)?;
+
+        sessions.push(claude_insight_tui::SessionListItem::new(
+            summary.session_id,
+            git_branch,
+            last_updated,
+            cost_usd,
+            events,
+        ));
+    }
+
+    Ok(sessions)
+}
+
+fn raw_event_to_session_event(
+    raw_event: &claude_insight_storage::RawEvent,
+) -> CliResult<claude_insight_tui::SessionEvent> {
+    let mut event = claude_insight_tui::SessionEvent::named(
+        claude_insight_tui::SessionEventKind::from_event_type(&raw_event.event_type),
+        raw_event.event_type.clone(),
+        parse_rfc3339_timestamp(&raw_event.ts)?,
+    )
+    .with_raw_event_id(raw_event.id)
+    .with_evidence(
+        claude_insight_tui::EvidenceDetails::default()
+            .with_raw_json(&raw_event.event_type, raw_event.payload_json.clone()),
+    );
+    event.tool_use_id = raw_event.tool_use_id.clone();
+
+    Ok(event)
+}
+
+fn infer_git_branch(session_id: &str, raw_events: &[claude_insight_storage::RawEvent]) -> String {
+    for raw_event in raw_events {
+        let Ok(payload) = serde_json::from_str::<Value>(&raw_event.payload_json) else {
+            continue;
+        };
+
+        for key in ["gitBranch", "git_branch", "branch"] {
+            if let Some(branch) = payload.get(key).and_then(Value::as_str) {
+                if !branch.trim().is_empty() {
+                    return branch.to_string();
+                }
+            }
+        }
+    }
+
+    session_id.to_string()
+}
+
+fn infer_cost_usd(raw_events: &[claude_insight_storage::RawEvent]) -> f64 {
+    for raw_event in raw_events.iter().rev() {
+        let Ok(payload) = serde_json::from_str::<Value>(&raw_event.payload_json) else {
+            continue;
+        };
+
+        for key in ["total_cost_usd", "cost_usd"] {
+            if let Some(cost) = payload.get(key).and_then(Value::as_f64) {
+                if cost.is_finite() && cost >= 0.0 {
+                    return cost;
+                }
+            }
+        }
+    }
+
+    0.0
+}
+
+fn parse_rfc3339_timestamp(value: &str) -> CliResult<OffsetDateTime> {
+    Ok(OffsetDateTime::parse(value, &Rfc3339)?)
 }
 
 fn read_pid_file(path: &Path) -> io::Result<u32> {

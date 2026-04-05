@@ -1,7 +1,11 @@
 [package]
-name = "types"
+name = "claude-insight-types"
+description.workspace = true
 edition.workspace = true
+homepage.workspace = true
 license.workspace = true
+readme.workspace = true
+repository.workspace = true
 version.workspace = true
 
 [lib]
