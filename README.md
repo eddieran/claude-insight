@@ -32,8 +32,29 @@ so they stay close to the UI that the tests verify.
 
 ## Installation
 
-Current supported path while the public distribution rollout is still in
-progress:
+### 1. Install from Homebrew
+
+```bash
+brew tap eddieran/tap
+brew install claude-insight
+```
+
+### 2. Install from Cargo
+
+```bash
+cargo install claude-insight
+```
+
+### 3. Download a release binary
+
+1. Open the GitHub Releases page for this repository.
+2. Download the archive for your platform and architecture.
+3. Unpack it and place `claude-insight` somewhere on your `PATH`.
+
+Release artifacts are expected for Linux, macOS, and Windows on amd64 and
+arm64.
+
+### 4. Build from source
 
 ```bash
 git clone git@github.com:eddieran/claude-insight.git
@@ -94,7 +115,8 @@ for Homebrew tap updates.
 
 ## Quick Start
 
-Run these two commands to install the hooks globally and then open the app:
+After installing the binary, run these two commands to install the hooks
+globally and then open the app:
 
 ```bash
 claude-insight init --global
@@ -104,9 +126,9 @@ claude-insight
 `init --global` updates `~/.claude/settings.json`, enables Claude Insight hook
 entries for all supported Claude Code events, and starts the local daemon.
 
-On first launch, `claude-insight` opens the first-run wizard if there is no
-local database yet. Once sessions exist, the same bare command renders the
-default session home screen instead of falling back to clap help text.
+After that, use Claude Code normally. Claude Insight captures hook events in the
+background. Run `claude-insight` again to open the TUI session list — browse,
+select, and replay any session interactively.
 
 By default, Claude Insight stores state under `~/.claude-insight/`:
 
