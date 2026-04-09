@@ -13,12 +13,16 @@ use std::{
 
 use bytes::Bytes;
 use clap::{Parser, Subcommand};
-use crossterm::style::{Color, Stylize};
+use crossterm::{
+    event, execute,
+    style::{Color, Stylize},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 use http_body_util::Full;
 use hyper::{Request, StatusCode};
 use hyper_util::rt::TokioIo;
+use ratatui::prelude::{CrosstermBackend, Terminal};
 use serde_json::{json, Map, Value};
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 type CliResult<T = ()> = Result<T, Box<dyn Error>>;
 const CLAUDE_DIR_NAME: &str = ".claude";
@@ -141,25 +145,77 @@ async fn run(cli: Cli) -> CliResult {
             backlog_path,
             capture_port,
         }) => handle_hook_forward(&backlog_path, capture_port).await,
-        None => handle_launch(),
+        None => handle_tui(),
     }
 }
 
-fn handle_launch() -> CliResult {
-    let (width, height) = launcher_dimensions();
+fn handle_tui() -> CliResult {
+    let database = claude_insight_storage::Database::open_default()?;
+    let summaries = database.list_recent_sessions(100)?;
 
-    if claude_insight_tui::WizardViewState::should_launch() {
-        print!("{}", claude_insight_tui::render_wizard_step1(width, height));
-        return Ok(());
+    let now = time::OffsetDateTime::now_utc();
+    let sessions: Vec<claude_insight_tui::SessionListItem> = summaries
+        .into_iter()
+        .map(|s| {
+            let last_updated = time::OffsetDateTime::parse(
+                &s.end_ts,
+                &time::format_description::well_known::Rfc3339,
+            )
+            .unwrap_or(now);
+
+            let events: Vec<claude_insight_tui::SessionEvent> = (0..s.event_count)
+                .map(|_| {
+                    let kind = if let Some(ref et) = s.last_event_type {
+                        claude_insight_tui::SessionEventKind::from_event_type(et)
+                    } else {
+                        claude_insight_tui::SessionEventKind::Other
+                    };
+                    claude_insight_tui::SessionEvent::new(kind, last_updated)
+                })
+                .collect();
+
+            claude_insight_tui::SessionListItem::new(&s.session_id, "", last_updated, 0.0, events)
+                .with_project_dir(s.project_dir)
+        })
+        .collect();
+
+    let app = claude_insight_tui::App::new(claude_insight_tui::SessionListView::new(sessions, now));
+
+    run_tui(app)
+}
+
+fn run_tui(mut app: claude_insight_tui::App) -> CliResult {
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let result = tui_event_loop(&mut terminal, &mut app);
+
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
+
+    result
+}
+
+fn tui_event_loop(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    app: &mut claude_insight_tui::App,
+) -> CliResult {
+    loop {
+        terminal.draw(|frame| app.render(frame, frame.area()))?;
+
+        if app.should_quit() {
+            return Ok(());
+        }
+
+        if event::poll(Duration::from_millis(100))? {
+            let ev = event::read()?;
+            app.handle_event(ev);
+        }
     }
-
-    let sessions = load_session_list_items(10)?;
-    print!(
-        "{}",
-        claude_insight_tui::render_session_list(sessions, width, height)
-    );
-
-    Ok(())
 }
 
 async fn handle_init(global: bool, capture_content: bool) -> CliResult {
@@ -765,98 +821,6 @@ fn database_path_label() -> CliResult<String> {
         "db={}",
         claude_insight_storage::Database::default_path()?.display()
     ))
-}
-
-fn launcher_dimensions() -> (u16, u16) {
-    match crossterm::terminal::size() {
-        Ok((width, height)) => (width.max(80), height.max(24)),
-        Err(_) => (120, 30),
-    }
-}
-
-fn load_session_list_items(limit: usize) -> CliResult<Vec<claude_insight_tui::SessionListItem>> {
-    let database = claude_insight_storage::Database::open_default()?;
-    let summaries = database.list_recent_sessions(limit)?;
-    let mut sessions = Vec::with_capacity(summaries.len());
-
-    for summary in summaries {
-        let raw_events = database.query_raw_events_by_session(&summary.session_id)?;
-        let events = raw_events
-            .iter()
-            .map(raw_event_to_session_event)
-            .collect::<CliResult<Vec<_>>>()?;
-        let git_branch = infer_git_branch(&summary.session_id, &raw_events);
-        let cost_usd = infer_cost_usd(&raw_events);
-        let last_updated = parse_rfc3339_timestamp(&summary.end_ts)?;
-
-        sessions.push(claude_insight_tui::SessionListItem::new(
-            summary.session_id,
-            git_branch,
-            last_updated,
-            cost_usd,
-            events,
-        ));
-    }
-
-    Ok(sessions)
-}
-
-fn raw_event_to_session_event(
-    raw_event: &claude_insight_storage::RawEvent,
-) -> CliResult<claude_insight_tui::SessionEvent> {
-    let mut event = claude_insight_tui::SessionEvent::named(
-        claude_insight_tui::SessionEventKind::from_event_type(&raw_event.event_type),
-        raw_event.event_type.clone(),
-        parse_rfc3339_timestamp(&raw_event.ts)?,
-    )
-    .with_raw_event_id(raw_event.id)
-    .with_evidence(
-        claude_insight_tui::EvidenceDetails::default()
-            .with_raw_json(&raw_event.event_type, raw_event.payload_json.clone()),
-    );
-    event.tool_use_id = raw_event.tool_use_id.clone();
-
-    Ok(event)
-}
-
-fn infer_git_branch(session_id: &str, raw_events: &[claude_insight_storage::RawEvent]) -> String {
-    for raw_event in raw_events {
-        let Ok(payload) = serde_json::from_str::<Value>(&raw_event.payload_json) else {
-            continue;
-        };
-
-        for key in ["gitBranch", "git_branch", "branch"] {
-            if let Some(branch) = payload.get(key).and_then(Value::as_str) {
-                if !branch.trim().is_empty() {
-                    return branch.to_string();
-                }
-            }
-        }
-    }
-
-    session_id.to_string()
-}
-
-fn infer_cost_usd(raw_events: &[claude_insight_storage::RawEvent]) -> f64 {
-    for raw_event in raw_events.iter().rev() {
-        let Ok(payload) = serde_json::from_str::<Value>(&raw_event.payload_json) else {
-            continue;
-        };
-
-        for key in ["total_cost_usd", "cost_usd"] {
-            if let Some(cost) = payload.get(key).and_then(Value::as_f64) {
-                if cost.is_finite() && cost >= 0.0 {
-                    return cost;
-                }
-            }
-        }
-    }
-
-    0.0
-}
-
-fn parse_rfc3339_timestamp(value: &str) -> CliResult<OffsetDateTime> {
-    Ok(OffsetDateTime::parse(value, &Rfc3339)?)
 }
 
 fn read_pid_file(path: &Path) -> io::Result<u32> {

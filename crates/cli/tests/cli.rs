@@ -167,65 +167,6 @@ fn trace_without_session_lists_recent_sessions() -> Result<(), Box<dyn std::erro
 
 #[test]
 #[serial_test::serial]
-fn default_launch_renders_first_run_wizard_instead_of_help(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let env = TestEnv::new()?;
-
-    let output = env.command().output()?;
-
-    assert!(
-        output.status.success(),
-        "stdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stdout = String::from_utf8(output.stdout)?;
-    assert!(stdout.contains("First-run guided setup"));
-    assert!(stdout.contains("Install hooks?"));
-    assert!(!stdout.contains("Usage: claude-insight [COMMAND]"));
-
-    Ok(())
-}
-
-#[test]
-#[serial_test::serial]
-fn default_launch_renders_session_home_when_data_exists() -> Result<(), Box<dyn std::error::Error>>
-{
-    let env = TestEnv::new()?;
-    let database = env.database()?;
-
-    database.insert_raw_event(
-        "session-1",
-        "hook",
-        "SessionStart",
-        "2026-04-03T15:00:00Z",
-        &serde_json::json!({
-            "source": "startup",
-            "gitBranch": "main",
-        })
-        .to_string(),
-    )?;
-
-    let output = env.command().output()?;
-
-    assert!(
-        output.status.success(),
-        "stdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stdout = String::from_utf8(output.stdout)?;
-    assert!(stdout.contains("◉ Sessions"));
-    assert!(stdout.contains("main"));
-    assert!(!stdout.contains("Usage: claude-insight [COMMAND]"));
-
-    Ok(())
-}
-
-#[test]
-#[serial_test::serial]
 fn search_returns_matching_events() -> Result<(), Box<dyn std::error::Error>> {
     let env = TestEnv::new()?;
     let database = env.database()?;

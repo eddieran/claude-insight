@@ -1,10 +1,11 @@
 ---
 source: crates/tui/tests/all_views.rs
+assertion_line: 58
 expression: "render_to_string(120, 40, |frame| view.render(frame, frame.area()))"
 ---
 ┌ CLAUDE INSIGHT ──────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │◉ Sessions                        [/] Search  [s] date                                                                │
-│▸ #1  feature/replay-layout    2min ago   █   ███        $0.42    1 tools    🔴 errors                                │
+│▸ #1 —                 feature/replay-layo… 2min ago █   ███      $0.42    1 tools  🔴 errors                         │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │

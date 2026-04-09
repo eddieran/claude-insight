@@ -8,6 +8,7 @@ pub struct SessionSummary {
     pub end_ts: String,
     pub event_count: i64,
     pub last_event_type: Option<String>,
+    pub project_dir: Option<String>,
 }
 
 impl Database {
@@ -25,8 +26,10 @@ impl Database {
                     WHERE re2.session_id = re.session_id
                     ORDER BY re2.ts DESC, re2.id DESC
                     LIMIT 1
-                ) AS last_event_type
+                ) AS last_event_type,
+                s.project_dir
             FROM raw_events re
+            LEFT JOIN sessions s ON s.id = re.session_id
             WHERE re.session_id IS NOT NULL AND re.session_id != ''
             GROUP BY re.session_id
             ORDER BY MAX(re.ts) DESC
@@ -56,5 +59,6 @@ fn map_session_summary(row: &Row<'_>) -> rusqlite::Result<SessionSummary> {
         end_ts: row.get(2)?,
         event_count: row.get(3)?,
         last_event_type: row.get(4)?,
+        project_dir: row.get(5)?,
     })
 }

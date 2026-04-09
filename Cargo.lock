@@ -305,6 +305,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "ratatui",
  "serde_json",
  "serial_test",
  "time",

@@ -1,12 +1,13 @@
 ---
 source: crates/tui/src/session_list.rs
+assertion_line: 905
 expression: "render_session_list(sample_sessions(), 120, 40)"
 ---
 ┌ CLAUDE INSIGHT ──────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │◉ Sessions                        [/] Search  [s] date                                                                │
-│▸ #1  main                     2min ago   ████           $0.42    2 tools    🟢 clean                                 │
-│  #2  feature/tui-session-list 1hr ago    ████           $1.23    1 tools    🟡 friction                              │
-│  #3  main                     5hr ago    ██             $0.05    1 tools    🔴 errors                                │
+│▸ #1 —                 main                 2min ago ████         $0.42    2 tools  🟢 clean                          │
+│  #2 —                 feature/tui-session… 1hr ago  ████         $1.23    1 tools  🟡 friction                       │
+│  #3 —                 main                 5hr ago  ██           $0.05    1 tools  🔴 errors                         │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │

@@ -283,6 +283,7 @@ impl SessionEvent {
 pub struct SessionListItem {
     pub session_id: String,
     pub git_branch: String,
+    pub project_dir: Option<String>,
     pub last_updated: OffsetDateTime,
     pub cost_micros: u64,
     pub events: Vec<SessionEvent>,
@@ -306,10 +307,23 @@ impl SessionListItem {
         Self {
             session_id: session_id.into(),
             git_branch: git_branch.into(),
+            project_dir: None,
             last_updated,
             cost_micros,
             events,
         }
+    }
+
+    pub fn with_project_dir(mut self, project_dir: Option<String>) -> Self {
+        self.project_dir = project_dir;
+        self
+    }
+
+    pub fn project_name(&self) -> &str {
+        self.project_dir
+            .as_deref()
+            .and_then(|p| p.rsplit('/').next())
+            .unwrap_or("")
     }
 
     pub fn mood(&self) -> Mood {
@@ -735,16 +749,17 @@ fn render_session_row(
     now: OffsetDateTime,
     selected: bool,
 ) {
-    let [marker, branch, time, sparkline, cost, tools, mood] = Layout::default()
+    let [marker, project, branch, time, sparkline, cost, tools, mood] = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Length(6),
-            Constraint::Length(24),
+            Constraint::Length(5),
+            Constraint::Length(18),
+            Constraint::Length(20),
+            Constraint::Length(10),
             Constraint::Length(12),
-            Constraint::Length(14),
             Constraint::Length(9),
-            Constraint::Length(11),
-            Constraint::Min(12),
+            Constraint::Length(9),
+            Constraint::Min(10),
         ])
         .areas(area);
 
@@ -762,6 +777,20 @@ fn render_session_row(
         })
         .style(row_style.fg(if selected { ACCENT_CYAN } else { TEXT_DIM })),
         marker,
+    );
+    let project_label = session.project_name();
+    let project_label = if project_label.is_empty() {
+        "—".to_string()
+    } else {
+        truncate_label(project_label, project.width as usize)
+    };
+    frame.render_widget(
+        Paragraph::new(project_label).style(row_style.fg(ACCENT_GREEN).add_modifier(if selected {
+            Modifier::BOLD
+        } else {
+            Modifier::empty()
+        })),
+        project,
     );
     frame.render_widget(
         Paragraph::new(truncate_label(&session.git_branch, branch.width as usize)).style(

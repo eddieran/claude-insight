@@ -23,9 +23,10 @@ crossterm.workspace = true
 http-body-util = "0.1"
 hyper = { version = "1", features = ["client", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
+ratatui.workspace = true
 serde_json.workspace = true
+time = { version = "0.3", features = ["formatting", "parsing"] }
 tokio = { workspace = true, features = ["net", "time"] }
-time = { version = "0.3", features = ["parsing"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 

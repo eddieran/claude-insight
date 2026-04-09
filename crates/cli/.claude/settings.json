@@ -1,0 +1,1138 @@
+{
+  "hooks": {
+    "ConfigChange": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "Elicitation": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "ElicitationResult": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "FileChanged": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "Setup": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63909/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63952/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:63982/hooks"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "statusMessage": "claude-insight",
+            "timeout": 5,
+            "type": "http",
+            "url": "http://127.0.0.1:64146/hooks"
+          }
+        ]
+      }
+    ]
+  }
+}
