@@ -3,7 +3,7 @@
 use std::{
     error::Error,
     fs,
-    io::{self, Read},
+    io::{self, IsTerminal, Read},
     net::{SocketAddr, TcpStream},
     path::{Path, PathBuf},
     process::{Command as ProcessCommand, ExitCode, Stdio},
@@ -150,6 +150,10 @@ async fn run(cli: Cli) -> CliResult {
 }
 
 fn handle_tui() -> CliResult {
+    if !io::stdout().is_terminal() {
+        return handle_tui_headless();
+    }
+
     let database = claude_insight_storage::Database::open_default()?;
     let summaries = database.list_recent_sessions(100)?;
 
@@ -182,6 +186,39 @@ fn handle_tui() -> CliResult {
     let app = claude_insight_tui::App::new(claude_insight_tui::SessionListView::new(sessions, now));
 
     run_tui(app)
+}
+
+fn handle_tui_headless() -> CliResult {
+    let (width, height) = crossterm::terminal::size().unwrap_or((120, 30));
+    let width = width.max(80);
+    let height = height.max(24);
+
+    if claude_insight_tui::WizardViewState::should_launch() {
+        print!("{}", claude_insight_tui::render_wizard_step1(width, height));
+        return Ok(());
+    }
+
+    let database = claude_insight_storage::Database::open_default()?;
+    let summaries = database.list_recent_sessions(10)?;
+    let now = time::OffsetDateTime::now_utc();
+    let sessions: Vec<claude_insight_tui::SessionListItem> = summaries
+        .into_iter()
+        .map(|s| {
+            let last_updated = time::OffsetDateTime::parse(
+                &s.end_ts,
+                &time::format_description::well_known::Rfc3339,
+            )
+            .unwrap_or(now);
+            claude_insight_tui::SessionListItem::new(&s.session_id, "", last_updated, 0.0, vec![])
+                .with_project_dir(s.project_dir)
+        })
+        .collect();
+
+    print!(
+        "{}",
+        claude_insight_tui::render_session_list(sessions, width, height)
+    );
+    Ok(())
 }
 
 fn run_tui(mut app: claude_insight_tui::App) -> CliResult {
