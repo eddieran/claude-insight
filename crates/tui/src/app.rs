@@ -46,6 +46,10 @@ impl App {
         self.should_quit
     }
 
+    pub fn set_replay_state(&mut self, state: ReplayViewState) {
+        self.view = AppView::Replay(Box::new(state));
+    }
+
     pub fn render(&mut self, frame: &mut Frame<'_>, area: Rect) {
         match &mut self.view {
             AppView::SessionList => self.session_list.render(frame, area),
@@ -80,9 +84,6 @@ impl App {
                 {
                     if let Some(session) = self.session_list.selected_session() {
                         let session_id = session.session_id.clone();
-                        self.view = AppView::Replay(Box::new(ReplayViewState::from_session(
-                            session.clone(),
-                        )));
                         return AppAction::OpenReplay { session_id };
                     }
                 }
@@ -127,7 +128,7 @@ mod tests {
     }
 
     #[test]
-    fn enter_opens_replay_for_selected_session() {
+    fn enter_returns_open_replay_action() {
         let mut app = App::new(SessionListView::new(
             sample_sessions(),
             parse_timestamp("2026-04-03T01:10:00Z"),
@@ -141,12 +142,21 @@ mod tests {
                 session_id: "session-1".to_string(),
             }
         );
-        assert_eq!(
-            app.view(),
-            &AppView::Replay(Box::new(ReplayViewState::from_session(
-                sample_sessions()[0].clone(),
-            )))
-        );
+        // View stays on SessionList — caller (event loop) loads data and calls set_replay_state
+        assert_eq!(app.view(), &AppView::SessionList);
+    }
+
+    #[test]
+    fn set_replay_state_transitions_to_replay_view() {
+        let mut app = App::new(SessionListView::new(
+            sample_sessions(),
+            parse_timestamp("2026-04-03T01:10:00Z"),
+        ));
+
+        let state = ReplayViewState::from_session(sample_sessions()[0].clone());
+        app.set_replay_state(state.clone());
+
+        assert_eq!(app.view(), &AppView::Replay(Box::new(state)));
     }
 
     #[test]

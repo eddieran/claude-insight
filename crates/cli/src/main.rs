@@ -156,36 +156,62 @@ fn handle_tui() -> CliResult {
 
     let database = claude_insight_storage::Database::open_default()?;
     let summaries = database.list_recent_sessions(100)?;
-
     let now = time::OffsetDateTime::now_utc();
+
+    let session_ids: Vec<&str> = summaries.iter().map(|s| s.session_id.as_str()).collect();
+    let all_event_summaries = database
+        .query_event_summaries_for_sessions(&session_ids)
+        .unwrap_or_default();
+
     let sessions: Vec<claude_insight_tui::SessionListItem> = summaries
         .into_iter()
         .map(|s| {
-            let last_updated = time::OffsetDateTime::parse(
-                &s.end_ts,
-                &time::format_description::well_known::Rfc3339,
-            )
-            .unwrap_or(now);
+            let last_updated = parse_ts(&s.end_ts).unwrap_or(now);
+            let event_summaries = all_event_summaries.get(&s.session_id);
 
-            let events: Vec<claude_insight_tui::SessionEvent> = (0..s.event_count)
-                .map(|_| {
-                    let kind = if let Some(ref et) = s.last_event_type {
-                        claude_insight_tui::SessionEventKind::from_event_type(et)
-                    } else {
-                        claude_insight_tui::SessionEventKind::Other
-                    };
-                    claude_insight_tui::SessionEvent::new(kind, last_updated)
+            let events: Vec<claude_insight_tui::SessionEvent> = event_summaries
+                .map(|es| {
+                    es.iter()
+                        .map(|e| {
+                            let kind = claude_insight_tui::SessionEventKind::from_event_type(
+                                &e.event_type,
+                            );
+                            let ts = parse_ts(&e.ts).unwrap_or(now);
+                            let mut ev =
+                                claude_insight_tui::SessionEvent::named(kind, &e.event_type, ts)
+                                    .with_raw_event_id(e.id);
+                            ev.tool_use_id = e.tool_use_id.clone();
+                            ev
+                        })
+                        .collect()
                 })
-                .collect();
+                .unwrap_or_default();
 
-            claude_insight_tui::SessionListItem::new(&s.session_id, "", last_updated, 0.0, events)
-                .with_project_dir(s.project_dir)
+            let git_branch = s
+                .project_dir
+                .as_deref()
+                .and_then(|p| p.rsplit('/').next())
+                .unwrap_or("")
+                .to_string();
+
+            claude_insight_tui::SessionListItem::new(
+                &s.session_id,
+                git_branch,
+                last_updated,
+                s.cost_usd.unwrap_or(0.0),
+                events,
+            )
+            .with_project_dir(s.project_dir)
         })
         .collect();
 
     let app = claude_insight_tui::App::new(claude_insight_tui::SessionListView::new(sessions, now));
 
-    run_tui(app)
+    run_tui(app, &database)
+}
+
+fn parse_ts(value: &str) -> Option<time::OffsetDateTime> {
+    time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok()
 }
 
 fn handle_tui_headless() -> CliResult {
@@ -221,14 +247,17 @@ fn handle_tui_headless() -> CliResult {
     Ok(())
 }
 
-fn run_tui(mut app: claude_insight_tui::App) -> CliResult {
+fn run_tui(
+    mut app: claude_insight_tui::App,
+    database: &claude_insight_storage::Database,
+) -> CliResult {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let result = tui_event_loop(&mut terminal, &mut app);
+    let result = tui_event_loop(&mut terminal, &mut app, database);
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
@@ -240,6 +269,7 @@ fn run_tui(mut app: claude_insight_tui::App) -> CliResult {
 fn tui_event_loop(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     app: &mut claude_insight_tui::App,
+    database: &claude_insight_storage::Database,
 ) -> CliResult {
     loop {
         terminal.draw(|frame| app.render(frame, frame.area()))?;
@@ -250,9 +280,81 @@ fn tui_event_loop(
 
         if event::poll(Duration::from_millis(100))? {
             let ev = event::read()?;
-            app.handle_event(ev);
+            let action = app.handle_event(ev);
+
+            if let claude_insight_tui::AppAction::OpenReplay { session_id } = action {
+                if let Ok(raw_events) = database.query_raw_events_by_session(&session_id) {
+                    let now = time::OffsetDateTime::now_utc();
+                    let events = build_replay_events(&raw_events, now);
+                    let cost_usd = infer_cost_usd(&raw_events);
+                    let git_branch = infer_git_branch(&raw_events);
+                    let last_updated = events.last().map(|e| e.timestamp).unwrap_or(now);
+
+                    let session_item = claude_insight_tui::SessionListItem::new(
+                        &session_id,
+                        git_branch,
+                        last_updated,
+                        cost_usd,
+                        events,
+                    );
+                    let state = claude_insight_tui::ReplayViewState::from_session(session_item);
+                    app.set_replay_state(state);
+                }
+            }
         }
     }
+}
+
+fn build_replay_events(
+    raw_events: &[claude_insight_storage::RawEvent],
+    now: time::OffsetDateTime,
+) -> Vec<claude_insight_tui::SessionEvent> {
+    raw_events
+        .iter()
+        .map(|e| {
+            let kind = claude_insight_tui::SessionEventKind::from_event_type(&e.event_type);
+            let ts = parse_ts(&e.ts).unwrap_or(now);
+            let evidence = claude_insight_tui::EvidenceDetails::default()
+                .with_raw_json(&e.event_type, e.payload_json.clone());
+            let mut ev = claude_insight_tui::SessionEvent::named(kind, &e.event_type, ts)
+                .with_raw_event_id(e.id)
+                .with_evidence(evidence);
+            ev.tool_use_id = e.tool_use_id.clone();
+            ev
+        })
+        .collect()
+}
+
+fn infer_git_branch(raw_events: &[claude_insight_storage::RawEvent]) -> String {
+    for raw_event in raw_events {
+        let Ok(payload) = serde_json::from_str::<Value>(&raw_event.payload_json) else {
+            continue;
+        };
+        for key in ["gitBranch", "git_branch", "branch"] {
+            if let Some(branch) = payload.get(key).and_then(Value::as_str) {
+                if !branch.trim().is_empty() {
+                    return branch.to_string();
+                }
+            }
+        }
+    }
+    String::new()
+}
+
+fn infer_cost_usd(raw_events: &[claude_insight_storage::RawEvent]) -> f64 {
+    for raw_event in raw_events.iter().rev() {
+        let Ok(payload) = serde_json::from_str::<Value>(&raw_event.payload_json) else {
+            continue;
+        };
+        for key in ["total_cost_usd", "cost_usd", "totalCostUsd", "costUsd"] {
+            if let Some(cost) = payload.get(key).and_then(Value::as_f64) {
+                if cost.is_finite() && cost >= 0.0 {
+                    return cost;
+                }
+            }
+        }
+    }
+    0.0
 }
 
 async fn handle_init(global: bool, capture_content: bool) -> CliResult {
